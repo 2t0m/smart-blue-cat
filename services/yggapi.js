@@ -54,19 +54,24 @@ function processTorrents(torrents, type, season, episode, config) {
 
   if (type === "series" && season) {
     const seasonFormatted = season.padStart(2, '0');
-    logger.debug(`🔍 Searching for complete season: S${seasonFormatted}`);
+    logger.debug(`🔍 Searching for complete season: Saison ${seasonFormatted}`);
+
     completeSeasonTorrents.push(
       ...torrents
         .filter(torrent =>
           config.RES_TO_SHOW.some(res => torrent.title.toLowerCase().includes(res.toLowerCase())) &&
           config.LANG_TO_SHOW.some(lang => torrent.title.toLowerCase().includes(lang.toLowerCase())) &&
           config.CODECS_TO_SHOW.some(codec => torrent.title.toLowerCase().includes(codec.toLowerCase())) &&
-          torrent.title.toLowerCase().includes(`s${seasonFormatted}`) &&
+          (
+            torrent.title.toLowerCase().includes(`saison ${seasonFormatted}`) ||
+            torrent.title.toLowerCase().includes(`season ${seasonFormatted}`)
+          ) &&
           !torrent.title.toLowerCase().match(new RegExp(`s${seasonFormatted}e\\d{2}`, "i")) &&
           !torrent.title.toLowerCase().match(new RegExp(`s${seasonFormatted}\\.e\\d{2}`, "i"))
         )
         .map(torrent => ({ ...torrent, category: "completeSeasonTorrents", source: "YGG" }))
     );
+
     logger.debug(`🎬 ${completeSeasonTorrents.length} complete season torrents found.`);
   }
 
@@ -98,17 +103,51 @@ function processTorrents(torrents, type, season, episode, config) {
 }
 
 // Search for torrents on YggTorrent
-async function searchYgg(title, type, season, episode, config, titleFR = null) {
+async function searchYgg(title, type, season, episode, config, titleFR = null, imdbId = null) {
   logger.debug(`🔍 Searching for torrents on YggTorrent`);
-  let torrents = await performSearch(title, type, config);
 
+  // Use the title for the search
+  let searchTitle = title;
+
+  // Check for custom search keywords
+  const customKeywords = process.env.CUSTOM_SEARCH_KEYWORDS || "";
+  logger.debug(`🔍 CUSTOM_SEARCH_KEYWORDS: ${customKeywords}`);
+
+  const keywordMap = Object.fromEntries(
+    customKeywords.split(",").map(entry => entry.split("=").map(s => s.trim()))
+  );
+
+  logger.debug(`🔍 Keyword Map: ${JSON.stringify(keywordMap, null, 2)}`);
+  logger.debug(`🔍 Checking for custom keywords for IMDB ID: ${imdbId}`);
+
+  // Add custom keywords if a match is found
+  if (keywordMap[imdbId]) {
+    const customKeyword = keywordMap[imdbId];
+    searchTitle += ` ${customKeyword}`;
+    logger.info(`🔍 Custom keywords added for "${title}": ${customKeyword}`);
+  } else {
+    logger.debug(`🔍 No custom keywords found for "${imdbId}".`);
+  }
+
+  let torrents = await performSearch(searchTitle, type, config);
+
+  // If no results, try with the French title
   if (torrents.length === 0 && titleFR !== null && title !== titleFR) {
-    logger.warn(`📢 No results found with "${title}", trying with "${titleFR}"`);
-    torrents = await performSearch(titleFR, type, config);
+    logger.warn(`📢 No results found with "${searchTitle}", trying with "${titleFR}"`);
+    searchTitle = titleFR;
+
+    // Add custom keywords for the French title if available
+    if (keywordMap[imdbId]) {
+      const customKeyword = keywordMap[imdbId];
+      searchTitle += ` ${customKeyword}`;
+      logger.info(`🔍 Custom keywords added for "${titleFR}": ${customKeyword}`);
+    }
+
+    torrents = await performSearch(searchTitle, type, config);
   }
 
   if (torrents.length === 0) {
-    logger.error(`❌ No torrents found for ${title}`);
+    logger.error(`❌ No torrents found for ${searchTitle}`);
     return { completeSeriesTorrents: [], completeSeasonTorrents: [], episodeTorrents: [], movieTorrents: [] };
   }
 
@@ -121,6 +160,7 @@ async function performSearch(searchTitle, type, config) {
     : [2179, 2181, 2182, 2184];
 
   const categoryParams = categoryIds.map(id => `category_id=${id}`).join('&');
+
   const requestUrl = `https://yggapi.eu/torrents?q=${encodeURIComponent(searchTitle)}&page=1&per_page=100&order_by=uploaded_at&${categoryParams}`;
 
   logger.debug(`🔍 Performing YGG search with URL: ${requestUrl}`);

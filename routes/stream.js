@@ -47,7 +47,8 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
       season,
       episode,
       config,
-      tmdbData.frenchTitle
+      tmdbData.frenchTitle,
+      imdbId
     ),
     searchSharewood(
       tmdbData.title,
@@ -106,7 +107,7 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
       const seasonEpisodePattern1 = `s${season.padStart(2, '0')}e${episode.padStart(2, '0')}`;
       const seasonEpisodePattern2 = `s${season.padStart(2, '0')}.e${episode.padStart(2, '0')}`;
       const matches = torrentTitle.includes(seasonEpisodePattern1) || torrentTitle.includes(seasonEpisodePattern2);
-      logger.debug(`🔍 Checking episode torrent "${torrent.title}" against patterns "${seasonEpisodePattern1}" and "${seasonEpisodePattern2}": ${matches}`);
+      //logger.debug(`🔍 Checking episode torrent "${torrent.title}" against patterns "${seasonEpisodePattern1}" and "${seasonEpisodePattern2}": ${matches}`);
       return matches;
     });
 
