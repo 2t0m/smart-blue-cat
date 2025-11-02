@@ -23,23 +23,29 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
   }
 
   const { type, id } = req.params;
-  logger.info(`📥 Stream request received for ID: ${id}`);
+  logger.request(`Stream request received for ID: ${id}`);
+  logger.debug(`📋 Request details - Type: ${type}, Full ID: ${id}`);
 
   // Parse the ID to extract IMDB ID, season, and episode
   const parts = id.split(':');
   const imdbId = parts[0];
   const season = parts[1];
   const episode = parts[2];
+  
+  logger.debug(`🔍 Parsed ID components - IMDB: ${imdbId}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
 
   // Retrieve TMDB data based on IMDB ID
-  logger.info(`🔍 Retrieving TMDB info for IMDB ID: ${imdbId}`);
+  logger.search(`Retrieving TMDB info for IMDB ID: ${imdbId}`);
   const tmdbData = await getTmdbData(imdbId, config);
   if (!tmdbData) {
     logger.warn(`❌ Unable to retrieve TMDB info for ${imdbId}`);
     return res.json({ streams: [] });
   }
+  
+  logger.verbose(`📽️ TMDB Data - Title: "${tmdbData.title}", French: "${tmdbData.frenchTitle}", Type: ${tmdbData.type}`);
 
   // Call searchYgg and searchSharewood to retrieve processed torrents
+  logger.search(`Starting parallel search on YGG and Sharewood for "${tmdbData.title}"`);
   const [yggResults, sharewoodResults] = await Promise.all([
     searchYgg(
       tmdbData.title,
@@ -58,6 +64,9 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
       config
     )
   ]);
+
+  logger.verbose(`🎯 YGG Results - Complete Series: ${yggResults.completeSeriesTorrents.length}, Seasons: ${yggResults.completeSeasonTorrents.length}, Episodes: ${yggResults.episodeTorrents.length}, Movies: ${yggResults.movieTorrents.length}`);
+  logger.verbose(`🎯 Sharewood Results - Complete Series: ${sharewoodResults.completeSeriesTorrents.length}, Seasons: ${sharewoodResults.completeSeasonTorrents.length}, Episodes: ${sharewoodResults.episodeTorrents.length}, Movies: ${sharewoodResults.movieTorrents.length}`);
 
   // Combine results from both sources
   const combinedResults = {
@@ -92,29 +101,41 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
     return res.json({ streams: [] });
   }
 
-  // Combine torrents based on type (series or movie)
+  // Combine torrents based on type (series or movie) with optimal priority order
   let allTorrents = [];
   if (type === "series") {
     const { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents } = combinedResults;
 
-    logger.debug(`📝 Torrents categorized as complete series: ${completeSeriesTorrents.map(t => `${t.title} (hash: ${t.hash})`).join(', ')}`);
-    logger.debug(`📝 Torrents categorized as complete seasons: ${completeSeasonTorrents.map(t => `${t.title} (hash: ${t.hash})`).join(', ')}`);
-    logger.debug(`📝 Torrents categorized as specific episodes: ${episodeTorrents.map(t => `${t.title} (hash: ${t.hash})`).join(', ')}`);
+    logger.debug(`📝 Episode torrents (PRIORITY 1): ${episodeTorrents.map(t => `${t.title} (${t.source})`).join(', ')}`);
+    logger.debug(`📝 Complete season torrents (PRIORITY 2): ${completeSeasonTorrents.map(t => `${t.title} (${t.source})`).join(', ')}`);
+    logger.debug(`📝 Complete series torrents (PRIORITY 3): ${completeSeriesTorrents.map(t => `${t.title} (${t.source})`).join(', ')}`);
 
     // Filter episode torrents to ensure they match the requested season and episode
+    const seasonEpisodePattern1 = `s${season.padStart(2, '0')}e${episode.padStart(2, '0')}`;
+    const seasonEpisodePattern2 = `s${season.padStart(2, '0')}.e${episode.padStart(2, '0')}`;
+    
+    logger.filter(`Final filtering of episodes with patterns: "${seasonEpisodePattern1}" and "${seasonEpisodePattern2}"`);
+    
     const filteredEpisodeTorrents = episodeTorrents.filter(torrent => {
       const torrentTitle = torrent.title.toLowerCase();
-      const seasonEpisodePattern1 = `s${season.padStart(2, '0')}e${episode.padStart(2, '0')}`;
-      const seasonEpisodePattern2 = `s${season.padStart(2, '0')}.e${episode.padStart(2, '0')}`;
       const matches = torrentTitle.includes(seasonEpisodePattern1) || torrentTitle.includes(seasonEpisodePattern2);
-      //logger.debug(`🔍 Checking episode torrent "${torrent.title}" against patterns "${seasonEpisodePattern1}" and "${seasonEpisodePattern2}": ${matches}`);
+      logger.debug(`🔍 Final episode filter "${torrent.title}": ${matches ? '✅ MATCH' : '❌ SKIP'}`);
       return matches;
     });
 
-    allTorrents = [...completeSeriesTorrents, ...completeSeasonTorrents, ...filteredEpisodeTorrents];
+    logger.verbose(`🎯 Final filtered episodes: ${filteredEpisodeTorrents.length}/${episodeTorrents.length} torrents match S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`);
+    
+    // ORDRE OPTIMAL: Episode spécifique → Saison complète → Série complète
+    allTorrents = [
+      ...filteredEpisodeTorrents,     // PRIORITÉ 1: Épisodes exacts
+      ...completeSeasonTorrents,      // PRIORITÉ 2: Saisons complètes  
+      ...completeSeriesTorrents       // PRIORITÉ 3: Séries complètes
+    ];
+    
+    logger.info(`🎯 Torrent priority order - Episodes: ${filteredEpisodeTorrents.length}, Seasons: ${completeSeasonTorrents.length}, Series: ${completeSeriesTorrents.length}`);
   } else if (type === "movie") {
     const { movieTorrents } = combinedResults;
-    logger.debug(`📝 Torrents categorized as movies: ${movieTorrents.map(t => t.title).join(', ')}`);
+    logger.debug(`📝 Movie torrents: ${movieTorrents.map(t => `${t.title} (${t.source})`).join(', ')}`);
     allTorrents = [...movieTorrents];
   }
 

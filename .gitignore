@@ -4,3 +4,6 @@ ssl/server.key
 ssl/server.cert
 data/streams.db
 docker-compose.override.yml
+
+# Configuration locale des scripts (personnalisée par développeur)
+scripts/config.local.sh

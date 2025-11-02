@@ -24,6 +24,8 @@ async function searchSharewood(title, type, season = null, episode = null, confi
   const seasonFormatted = season ? ` S${season.padStart(2, '0')}` : '';
   const requestUrl = `https://www.sharewood.tv/api/${config.SHAREWOOD_PASSKEY}/search?name=${encodeURIComponent(title + " " +seasonFormatted)}&category=1&subcategory_id=${subcategoryParams}`;
 
+  logger.search(`Searching for torrents on Sharewood`);
+  logger.verbose(`🎯 Sharewood search params - Title: "${title}", Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
   logger.debug(`🔍 Performing Sharewood search with URL: ${requestUrl}`);
 
   try {
@@ -31,6 +33,14 @@ async function searchSharewood(title, type, season = null, episode = null, confi
     const torrents = response.data || [];
 
     logger.info(`✅ Found ${torrents.length} torrents on Sharewood for "${title}".`);
+    
+    // Log des premiers torrents pour debug
+    if (torrents.length > 0) {
+      logger.debug(`🔍 First 3 Sharewood torrent titles found:`);
+      torrents.slice(0, 3).forEach((torrent, index) => {
+        logger.debug(`   ${index + 1}. "${torrent.name}"`);
+      });
+    }
 
     // Process torrents to structure the results
     return processTorrents(torrents, type, season, episode, config);
@@ -45,126 +55,186 @@ async function searchSharewood(title, type, season = null, episode = null, confi
   }
 }
 
-// Process torrents based on type, season, and episode
+// Process torrents based on type, season, and episode with priority system
 function processTorrents(torrents, type, season, episode, config) {
+  logger.filter(`🎯 Processing ${torrents.length} Sharewood torrents`);
+  logger.debug(`📊 Request params - Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
 
   const completeSeriesTorrents = [];
   const completeSeasonTorrents = [];
   const episodeTorrents = [];
   const movieTorrents = [];
 
-  // Trier les torrents par priorité
-  torrents.sort((a, b) => {
-    const priorityA = prioritizeTorrent(a, config);
-    const priorityB = prioritizeTorrent(b, config);
-
-    if (priorityA.resolution !== priorityB.resolution) {
-      return priorityA.resolution - priorityB.resolution;
-    }
-    if (priorityA.language !== priorityB.language) {
-      return priorityA.language - priorityB.language;
-    }
-    return priorityA.codec - priorityB.codec;
-  });
-
   if (type === "movie") {
-    logger.debug(`🔍 Filtering movies`);
-    movieTorrents.push(
-      ...torrents
-        .filter(torrent =>
-          config.RES_TO_SHOW.some(res => torrent.name.toLowerCase().includes(res.toLowerCase())) &&
-          config.LANG_TO_SHOW.some(lang => torrent.language.toLowerCase().includes(lang.toLowerCase())) &&
-          config.CODECS_TO_SHOW.some(codec => torrent.name.toLowerCase().includes(codec.toLowerCase()))
-        )
-        .map(torrent => ({
-          id: torrent.id,
-          hash: torrent.info_hash,
-          title: torrent.name,
-          resolution: torrent.type,
-          size: torrent.size,
-          seeders: torrent.seeders,
-          leechers: torrent.leechers,
-          language: torrent.language,
-          download_url: torrent.download_url,
-          created_at: torrent.created_at,
-          source: "SW"
-        }))
-    );
-    logger.debug(`🎬 ${movieTorrents.length} movie torrents found.`);
+    logger.filter(`🎬 Processing movies`);
+    
+    torrents.forEach(torrent => {
+      if (meetsCriteria(torrent, config)) {
+        movieTorrents.push(formatTorrent(torrent));
+        logger.debug(`✅ Movie added: "${torrent.name}"`);
+      }
+    });
+    
+    logger.info(`🎬 Found ${movieTorrents.length} valid movie torrents on Sharewood`);
+    return { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents, movieTorrents };
   }
 
   if (type === "series") {
-    if (season) {
-      const seasonFormatted = season.padStart(2, '0');
-      logger.debug(`🔍 Filtering complete seasons: S${seasonFormatted}`);
-      completeSeasonTorrents.push(
-        ...torrents
-          .filter(torrent =>
-            torrent.name.toLowerCase().includes(`s${seasonFormatted}`) &&
-            !torrent.name.toLowerCase().match(new RegExp(`s${seasonFormatted}e\\d{2}`, "i")) &&
-            !torrent.name.toLowerCase().match(new RegExp(`s${seasonFormatted}\\.e\\d{2}`, "i"))
-          )
-          .map(torrent => ({
-            id: torrent.id,
-            hash: torrent.info_hash,
-            title: torrent.name,
-            resolution: torrent.type,
-            size: torrent.size,
-            seeders: torrent.seeders,
-            leechers: torrent.leechers,
-            language: torrent.language,
-            download_url: torrent.download_url,
-            created_at: torrent.created_at,
-            source: "SW"
-          }))
-      );
-      logger.debug(`🎬 ${completeSeasonTorrents.length} complete season torrents found.`);
-    }
-
+    logger.filter(`📺 Processing series - prioritizing episode → season → complete series`);
+    
+    // Priority 1: Specific episodes (if season & episode provided)
     if (season && episode) {
-      const seasonFormatted = season.padStart(2, '0');
-      const episodeFormatted = episode.padStart(2, '0');
-      const patterns = [
-        `s${seasonFormatted}e${episodeFormatted}`,
-        `s${seasonFormatted}.e${episodeFormatted}`
+      const seasonPadded = season.padStart(2, '0');
+      const episodePadded = episode.padStart(2, '0');
+      
+      const episodePatterns = [
+        `s${seasonPadded}e${episodePadded}`,  // s01e01
+        `s${seasonPadded}.e${episodePadded}`, // s01.e01  
+        `${seasonPadded}x${episodePadded}`,   // 01x01
+        `season.${season}.episode.${episode}`, // season.1.episode.1
+        `s${season}e${episode}`,              // s1e1 (non-padded)
+        `saison.${season}.episode.${episode}` // French format
       ];
 
-      logger.debug(`🔍 Filtering specific episodes: Patterns ${patterns.join(', ')}`);
-      episodeTorrents.push(
-        ...torrents
-          .filter(torrent =>
-            patterns.some(pattern => torrent.name.toLowerCase().includes(pattern))
-          )
-          .map(torrent => ({
-            id: torrent.id,
-            hash: torrent.info_hash,
-            title: torrent.name,
-            resolution: torrent.type,
-            size: torrent.size,
-            seeders: torrent.seeders,
-            leechers: torrent.leechers,
-            language: torrent.language,
-            download_url: torrent.download_url,
-            created_at: torrent.created_at,
-            source: "SW"
-          }))
-      );
-      logger.debug(`🎬 ${episodeTorrents.length} episode torrents found.`);
+      logger.filter(`🎯 Priority 1 - Searching for specific episode S${seasonPadded}E${episodePadded}`);
+      logger.debug(`🔍 Episode patterns: ${episodePatterns.join(', ')}`);
+
+      torrents.forEach(torrent => {
+        const name = torrent.name.toLowerCase();
+        const hasEpisodePattern = episodePatterns.some(pattern => name.includes(pattern.toLowerCase()));
+        
+        // Additional check: ensure it's not a season pack
+        const isNotSeasonPack = !name.match(/complete|integrale?|saison.*complete|season.*complete|multi/i);
+        
+        if (hasEpisodePattern && isNotSeasonPack && meetsCriteria(torrent, config)) {
+          episodeTorrents.push(formatTorrent(torrent));
+          logger.debug(`✅ Episode torrent added: "${torrent.name}"`);
+        }
+      });
+      
+      logger.info(`� Found ${episodeTorrents.length} episode-specific torrents`);
     }
+
+    // Priority 2: Complete seasons (if season provided)
+    if (season) {
+      const seasonPadded = season.padStart(2, '0');
+      
+      const seasonPatterns = [
+        `s${seasonPadded}`,          // s01
+        `season.${season}`,          // season.1
+        `saison.${season}`,          // saison.1 (French)
+        `season ${season}`,          // season 1
+        `saison ${season}`           // saison 1
+      ];
+
+      logger.filter(`🎯 Priority 2 - Searching for complete season S${seasonPadded}`);
+      logger.debug(`🔍 Season patterns: ${seasonPatterns.join(', ')}`);
+
+      torrents.forEach(torrent => {
+        const name = torrent.name.toLowerCase();
+        
+        // Check for season patterns
+        const hasSeasonPattern = seasonPatterns.some(pattern => name.includes(pattern.toLowerCase()));
+        
+        // Exclude specific episodes (they go in episodeTorrents)
+        const excludeEpisodePatterns = [
+          `s${seasonPadded}e\\d{1,2}`,        // s01e01, s01e1
+          `s${seasonPadded}\\.e\\d{1,2}`,     // s01.e01
+          `${seasonPadded}x\\d{1,2}`,         // 01x01
+          `s${season}e\\d{1,2}`,              // s1e1
+          `season\\.${season}\\.episode`      // season.1.episode
+        ];
+        
+        const isNotSpecificEpisode = !excludeEpisodePatterns.some(pattern => 
+          name.match(new RegExp(pattern, 'i'))
+        );
+        
+        // Look for indicators it's a complete season
+        const seasonIndicators = [
+          'complete', 'integrale?', 'saison.*complete', 'season.*complete',
+          'multi', 'pack', 'collection'
+        ];
+        
+        const hasSeasonIndicator = seasonIndicators.some(indicator => 
+          name.match(new RegExp(indicator, 'i'))
+        ) || hasSeasonPattern;
+        
+        if (hasSeasonIndicator && isNotSpecificEpisode && meetsCriteria(torrent, config)) {
+          completeSeasonTorrents.push(formatTorrent(torrent));
+          logger.debug(`✅ Season torrent added: "${torrent.name}"`);
+        }
+      });
+      
+      logger.info(`� Found ${completeSeasonTorrents.length} complete season torrents`);
+    }
+
+    // Priority 3: Complete series (fallback)
+    const seriesPatterns = [
+      'complete', 'integrale?', 'serie.*complete', 'series.*complete',
+      'collection.*complete', 'pack.*complete', 'saison.*complete',
+      'season.*complete', 'multi.*season', 'toutes.*saisons'
+    ];
+
+    logger.filter(`🎯 Priority 3 - Searching for complete series`);
+    logger.debug(`🔍 Series patterns: ${seriesPatterns.join(', ')}`);
+
+    torrents.forEach(torrent => {
+      const name = torrent.name.toLowerCase();
+      
+      const hasSeriesPattern = seriesPatterns.some(pattern => 
+        name.match(new RegExp(pattern, 'i'))
+      );
+      
+      // Exclude specific seasons/episodes (they go in their respective arrays)
+      const isNotSpecific = !name.match(/s\d{1,2}(e\d{1,2})?|season\s*\d|saison\s*\d/i);
+      
+      if (hasSeriesPattern && isNotSpecific && meetsCriteria(torrent, config)) {
+        completeSeriesTorrents.push(formatTorrent(torrent));
+        logger.debug(`✅ Complete series torrent added: "${torrent.name}"`);
+      }
+    });
+    
+    logger.info(`🎯 Found ${completeSeriesTorrents.length} complete series torrents`);
   }
 
+  const totalFound = episodeTorrents.length + completeSeasonTorrents.length + completeSeriesTorrents.length + movieTorrents.length;
+  logger.info(`📊 Sharewood processing complete: ${totalFound} torrents matched criteria`);
+  
   return { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents, movieTorrents };
 }
 
-function prioritizeTorrent(torrent, config) {
-  const resolutionPriority = config.RES_TO_SHOW.findIndex(res => torrent.name.toLowerCase().includes(res.toLowerCase()));
-  const languagePriority = config.LANG_TO_SHOW.findIndex(lang => torrent.language.toLowerCase().includes(lang.toLowerCase()));
-  const codecPriority = config.CODECS_TO_SHOW.findIndex(codec => torrent.name.toLowerCase().includes(codec.toLowerCase()));
+// Helper function to check if torrent meets quality criteria
+function meetsCriteria(torrent, config) {
+  const name = torrent.name.toLowerCase();
+  const language = (torrent.language || '').toLowerCase();
+  
+  const hasValidResolution = config.RES_TO_SHOW.some(res => name.includes(res.toLowerCase()));
+  const hasValidLanguage = config.LANG_TO_SHOW.some(lang => language.includes(lang.toLowerCase()));
+  const hasValidCodec = config.CODECS_TO_SHOW.some(codec => name.includes(codec.toLowerCase()));
+  
+  const isValid = hasValidResolution && hasValidLanguage && hasValidCodec;
+  
+  if (!isValid) {
+    logger.debug(`❌ Torrent filtered out: "${torrent.name}" - Res:${hasValidResolution} Lang:${hasValidLanguage} Codec:${hasValidCodec}`);
+  }
+  
+  return isValid;
+}
 
+// Helper function to format torrent for output
+function formatTorrent(torrent) {
   return {
-    resolution: resolutionPriority === -1 ? Infinity : resolutionPriority,
-    language: languagePriority === -1 ? Infinity : languagePriority,
-    codec: codecPriority === -1 ? Infinity : codecPriority
+    id: torrent.id,
+    hash: torrent.info_hash,
+    title: torrent.name,
+    resolution: torrent.type,
+    size: torrent.size,
+    seeders: torrent.seeders,
+    leechers: torrent.leechers,
+    language: torrent.language,
+    download_url: torrent.download_url,
+    created_at: torrent.created_at,
+    source: "SW"
   };
 }
 

@@ -24,79 +24,144 @@ function processTorrents(torrents, type, season, episode, config) {
   const movieTorrents = [];
 
   if (type === "movie") {
-    logger.debug(`🔍 Searching for movies`);
+    logger.filter(`Searching for movies with filters - Res: [${config.RES_TO_SHOW.join(', ')}], Lang: [${config.LANG_TO_SHOW.join(', ')}], Codecs: [${config.CODECS_TO_SHOW.join(', ')}]`);
     movieTorrents.push(
       ...torrents
-        .filter(torrent =>
-          config.RES_TO_SHOW.some(res => torrent.title.toLowerCase().includes(res.toLowerCase())) &&
-          config.LANG_TO_SHOW.some(lang => torrent.title.toLowerCase().includes(lang.toLowerCase())) &&
-          config.CODECS_TO_SHOW.some(codec => torrent.title.toLowerCase().includes(codec.toLowerCase()))
-        )
+        .filter(torrent => {
+          const hasRes = config.RES_TO_SHOW.some(res => torrent.title.toLowerCase().includes(res.toLowerCase()));
+          const hasLang = config.LANG_TO_SHOW.some(lang => torrent.title.toLowerCase().includes(lang.toLowerCase()));
+          const hasCodec = config.CODECS_TO_SHOW.some(codec => torrent.title.toLowerCase().includes(codec.toLowerCase()));
+          const passes = hasRes && hasLang && hasCodec;
+          
+          if (!passes) {
+            logger.debug(`🚫 Movie rejected "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}`);
+          }
+          return passes;
+        })
         .map(torrent => ({ ...torrent, category: "movieTorrents", source: "YGG" }))
     );
-    logger.debug(`🎬 ${movieTorrents.length} movie torrents found.`);
+    logger.result(`${movieTorrents.length} movie torrents found.`);
   }
 
   if (type === "series") {
-    logger.debug(`🔍 Searching for complete series with the word "COMPLETE"`);
+    // 1. PRIORITÉ: Chercher l'épisode spécifique d'abord (si season + episode fournis)
+    if (season && episode) {
+      const seasonFormatted = season.padStart(2, '0');
+      const episodeFormatted = episode.padStart(2, '0');
+      logger.filter(`🎯 PRIORITY 1: Searching for specific episode S${seasonFormatted}E${episodeFormatted}`);
+      
+      // Patterns de recherche très flexibles pour épisodes
+      const episodePatterns = [
+        `s${seasonFormatted}e${episodeFormatted}`,
+        `s${seasonFormatted}.e${episodeFormatted}`,
+        `s${seasonFormatted} e${episodeFormatted}`,
+        `s${seasonFormatted}_e${episodeFormatted}`,
+        `season ${parseInt(season)} episode ${parseInt(episode)}`,
+        `saison ${parseInt(season)} episode ${parseInt(episode)}`,
+        `${seasonFormatted}x${episodeFormatted}`,
+      ];
+      
+      logger.debug(`🔍 Episode search patterns: ${episodePatterns.join(', ')}`);
+      
+      episodeTorrents.push(
+        ...torrents
+          .filter(torrent => {
+            const title = torrent.title.toLowerCase();
+            const hasRes = config.RES_TO_SHOW.some(res => title.includes(res.toLowerCase()));
+            const hasLang = config.LANG_TO_SHOW.some(lang => title.includes(lang.toLowerCase()));
+            const hasCodec = config.CODECS_TO_SHOW.some(codec => title.includes(codec.toLowerCase()));
+            const hasPattern = episodePatterns.some(pattern => title.includes(pattern));
+            
+            const passes = hasRes && hasLang && hasCodec && hasPattern;
+            
+            logger.debug(`🔍 Episode "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Pattern:${hasPattern} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
+            
+            return passes;
+          })
+          .map(torrent => ({ ...torrent, category: "episodeTorrents", source: "YGG" }))
+      );
+      logger.result(`${episodeTorrents.length} specific episode torrents found.`);
+    }
+
+    // 2. PRIORITÉ: Chercher la saison complète (fallback fiable)
+    if (season) {
+      const seasonFormatted = season.padStart(2, '0');
+      logger.filter(`🎯 PRIORITY 2: Searching for complete season S${seasonFormatted}`);
+
+      // Patterns pour saisons complètes
+      const seasonPatterns = [
+        `saison ${seasonFormatted}`,
+        `season ${seasonFormatted}`,
+        `s${seasonFormatted}`,
+        `saison ${parseInt(season)}`,
+        `season ${parseInt(season)}`,
+        `s${parseInt(season)} `,
+        `s${seasonFormatted} `,
+      ];
+
+      logger.debug(`🔍 Season search patterns: ${seasonPatterns.join(', ')}`);
+
+      completeSeasonTorrents.push(
+        ...torrents
+          .filter(torrent => {
+            const title = torrent.title.toLowerCase();
+            const hasRes = config.RES_TO_SHOW.some(res => title.includes(res.toLowerCase()));
+            const hasLang = config.LANG_TO_SHOW.some(lang => title.includes(lang.toLowerCase()));
+            const hasCodec = config.CODECS_TO_SHOW.some(codec => title.includes(codec.toLowerCase()));
+            
+            // Vérifier les patterns de saison ET exclure les épisodes spécifiques
+            const hasSeasonPattern = seasonPatterns.some(pattern => title.includes(pattern));
+            const isSpecificEpisode = title.match(new RegExp(`s${seasonFormatted}e\\d{2}`, "i")) || 
+                                     title.match(new RegExp(`s${seasonFormatted}\\.e\\d{2}`, "i"));
+            
+            const passes = hasRes && hasLang && hasCodec && hasSeasonPattern && !isSpecificEpisode;
+            
+            logger.debug(`🔍 Season "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Season:${hasSeasonPattern}, NotEpisode:${!isSpecificEpisode} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
+            
+            return passes;
+          })
+          .map(torrent => ({ ...torrent, category: "completeSeasonTorrents", source: "YGG" }))
+      );
+
+      logger.result(`${completeSeasonTorrents.length} complete season torrents found.`);
+    }
+
+    // 3. PRIORITÉ: Chercher les séries complètes (dernier recours)
+    logger.filter(`🎯 PRIORITY 3: Searching for complete series`);
+    
+    const completeSeriesPatterns = [
+      'complete',
+      'integral',
+      'integrale',
+      'collection',
+      'serie complete',
+      'series complete',
+      'saison 1-',
+      'season 1-',
+      's01-s',
+      's1-s'
+    ];
+
+    logger.debug(`🔍 Complete series patterns: ${completeSeriesPatterns.join(', ')}`);
+
     completeSeriesTorrents.push(
       ...torrents
-        .filter(torrent =>
-          config.RES_TO_SHOW.some(res => torrent.title.toLowerCase().includes(res.toLowerCase())) &&
-          config.LANG_TO_SHOW.some(lang => torrent.title.toLowerCase().includes(lang.toLowerCase())) &&
-          config.CODECS_TO_SHOW.some(codec => torrent.title.toLowerCase().includes(codec.toLowerCase())) &&
-          torrent.title.toUpperCase().includes("COMPLETE")
-        )
+        .filter(torrent => {
+          const title = torrent.title.toLowerCase();
+          const hasRes = config.RES_TO_SHOW.some(res => title.includes(res.toLowerCase()));
+          const hasLang = config.LANG_TO_SHOW.some(lang => title.includes(lang.toLowerCase()));
+          const hasCodec = config.CODECS_TO_SHOW.some(codec => title.includes(codec.toLowerCase()));
+          const hasCompletePattern = completeSeriesPatterns.some(pattern => title.includes(pattern));
+          
+          const passes = hasRes && hasLang && hasCodec && hasCompletePattern;
+          
+          logger.debug(`🔍 Complete "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Complete:${hasCompletePattern} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
+          
+          return passes;
+        })
         .map(torrent => ({ ...torrent, category: "completeSeriesTorrents", source: "YGG" }))
     );
-    logger.debug(`🎬 ${completeSeriesTorrents.length} complete series torrents found.`);
-  }
-
-  if (type === "series" && season) {
-    const seasonFormatted = season.padStart(2, '0');
-    logger.debug(`🔍 Searching for complete season: Saison ${seasonFormatted}`);
-
-    completeSeasonTorrents.push(
-      ...torrents
-        .filter(torrent =>
-          config.RES_TO_SHOW.some(res => torrent.title.toLowerCase().includes(res.toLowerCase())) &&
-          config.LANG_TO_SHOW.some(lang => torrent.title.toLowerCase().includes(lang.toLowerCase())) &&
-          config.CODECS_TO_SHOW.some(codec => torrent.title.toLowerCase().includes(codec.toLowerCase())) &&
-          (
-            torrent.title.toLowerCase().includes(`saison ${seasonFormatted}`) ||
-            torrent.title.toLowerCase().includes(`season ${seasonFormatted}`)
-          ) &&
-          !torrent.title.toLowerCase().match(new RegExp(`s${seasonFormatted}e\\d{2}`, "i")) &&
-          !torrent.title.toLowerCase().match(new RegExp(`s${seasonFormatted}\\.e\\d{2}`, "i"))
-        )
-        .map(torrent => ({ ...torrent, category: "completeSeasonTorrents", source: "YGG" }))
-    );
-
-    logger.debug(`🎬 ${completeSeasonTorrents.length} complete season torrents found.`);
-  }
-
-  if (type === "series" && season && episode) {
-    const seasonFormatted = season.padStart(2, '0');
-    const episodeFormatted = episode.padStart(2, '0');
-    logger.debug(`🔍 Searching for specific episode: S${seasonFormatted}E${episodeFormatted}`);
-    episodeTorrents.push(
-      ...torrents
-        .filter(torrent =>
-          config.RES_TO_SHOW.some(res => torrent.title.toLowerCase().includes(res.toLowerCase())) &&
-          config.LANG_TO_SHOW.some(lang => torrent.title.toLowerCase().includes(lang.toLowerCase())) &&
-          config.CODECS_TO_SHOW.some(codec => torrent.title.toLowerCase().includes(codec.toLowerCase())) &&
-          (
-            torrent.title.toLowerCase().includes(`s${seasonFormatted}e${episodeFormatted}`) ||
-            torrent.title.toLowerCase().includes(`s${seasonFormatted}.e${episodeFormatted}`)
-          )
-        )
-        .map(torrent => ({
-          ...torrent,
-          category: "episodeTorrents",
-          source: "YGG"
-        }))
-    );
-    logger.debug(`🎬 ${episodeTorrents.length} episode torrents found.`);
+    logger.result(`${completeSeriesTorrents.length} complete series torrents found.`);
   }
 
   return { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents, movieTorrents };
@@ -104,7 +169,8 @@ function processTorrents(torrents, type, season, episode, config) {
 
 // Search for torrents on YggTorrent
 async function searchYgg(title, type, season, episode, config, titleFR = null, imdbId = null) {
-  logger.debug(`🔍 Searching for torrents on YggTorrent`);
+  logger.search(`Searching for torrents on YggTorrent`);
+  logger.verbose(`🎯 Search params - Title: "${title}", Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
 
   // Use the title for the search
   let searchTitle = title;
@@ -170,6 +236,14 @@ async function performSearch(searchTitle, type, config) {
     let torrents = response.data || [];
 
     logger.info(`✅ Found ${torrents.length} torrents on YggTorrent for "${searchTitle}".`);
+    
+    // Log des premiers torrents pour debug
+    if (torrents.length > 0) {
+      logger.debug(`🔍 First 5 torrent titles found:`);
+      torrents.slice(0, 5).forEach((torrent, index) => {
+        logger.debug(`   ${index + 1}. "${torrent.title}"`);
+      });
+    }
 
     torrents.sort((a, b) => {
       const priorityA = prioritizeTorrent(a, config);
