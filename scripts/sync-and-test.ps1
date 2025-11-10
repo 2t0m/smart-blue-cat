@@ -3,7 +3,7 @@ param(
     [string]$ConfigPath = "scripts\config.local.ps1"
 )
 
-Write-Host "Sync-and-test depuis Windows..." -ForegroundColor Green
+Write-Host "Test rapide sur serveur distant (sans commit)..." -ForegroundColor Green
 
 # Charger la configuration
 if (Test-Path $ConfigPath) {
@@ -20,73 +20,100 @@ if (Test-Path $ConfigPath) {
     Write-Host "Config par defaut utilisee. Creez $ConfigPath pour personnaliser" -ForegroundColor Yellow
 }
 
-# Synchronisation via Git
-Write-Host "Synchronisation via Git..." -ForegroundColor Cyan
+# Synchronisation TOUS les fichiers (même non committés)
+Write-Host "Synchronisation des modifications locales..." -ForegroundColor Cyan
 
 try {
-    # Vérifier s'il y a des changements
-    $changes = git status --porcelain
-    
-    if ($changes) {
-        Write-Host "Changements detectes, commit temporaire..." -ForegroundColor Yellow
-        git add .
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        git commit -m "WIP: Sync-and-test from Windows - $timestamp"
+    # Méthode 1 : Rsync si disponible (comme le script bash)
+    if (Get-Command rsync -ErrorAction SilentlyContinue) {
+        Write-Host "Utilisation de rsync pour synchronisation directe..." -ForegroundColor Yellow
+        rsync -avz --exclude='node_modules' --exclude='.git' --exclude='data' `
+            "$LOCAL_PROJECT_PATH/" `
+            "$SERVER_USER@$SERVER_HOST`:$SERVER_PROJECT_PATH/"
         
-        # Push vers le serveur
-        Write-Host "Push vers GitHub..." -ForegroundColor Cyan
-        git push origin main
+        Write-Host "Restart rapide du service..." -ForegroundColor Yellow
+        $needGitPull = $false
+    } else {
+        # Méthode 2 : Git commit temporaire (fallback Windows)
+        Write-Host "Rsync non disponible, utilisation de Git..." -ForegroundColor Yellow
         
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Erreur lors du push GitHub" -ForegroundColor Red
-            return
+        # Vérifier s'il y a des changements
+        $changes = git status --porcelain
+        
+        if ($changes) {
+            Write-Host "Changements detectes, commit temporaire..." -ForegroundColor Yellow
+            git add .
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            git commit -m "WIP: Sync-and-test from Windows - $timestamp"
+            
+            # Push vers le serveur
+            Write-Host "Push vers GitHub..." -ForegroundColor Cyan
+            git push origin main
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Erreur lors du push GitHub" -ForegroundColor Red
+                return
+            }
+            
+            # Ajouter un git pull dans la commande SSH
+            $needGitPull = $true
+        } else {
+            Write-Host "Aucun changement detecte, restart uniquement..." -ForegroundColor Blue
+            $needGitPull = $false
         }
-        
-        # Pull sur le serveur et restart
-        Write-Host "Deploiement sur le serveur..." -ForegroundColor Yellow
-        
+    }
+    
+    # Restart sur le serveur (comme le script bash)
+    if ($needGitPull) {
         $deployCommand = @'
 cd /home/thomas/ygg-stremio-ad
 echo "=== Git pull ==="
 git pull origin main
-echo "=== Arret conteneurs ==="
+echo "=== Arret conteneur ==="
 docker-compose down
-echo "=== Build et redemarrage ==="
+echo "=== Redemarrage avec build ==="
 docker-compose up -d --build
-echo "=== Attente demarrage (10s) ==="
+echo "=== Attente (10s) ==="
 sleep 10
-echo "=== Status des conteneurs ==="
+echo "=== Status ==="
 docker-compose ps
 echo "=== Logs de demarrage ==="
-docker-compose logs --tail=20 ygg-stremio-ad
-echo "=== Deploiement termine ==="
+docker-compose logs --tail=25 ygg-stremio-ad
+echo "=== Redemarrage termine ==="
 '@
-        
-        ssh "$SERVER_USER@$SERVER_HOST" $deployCommand
-        
-        Write-Host ""
-        Write-Host "Synchronisation terminee !" -ForegroundColor Green
-        Write-Host "Testez sur : $SERVER_URL" -ForegroundColor Cyan
-        Write-Host ""
-        
-        # Proposer de voir les logs en temps réel
-        $showLogs = Read-Host "Voulez-vous voir les logs en temps reel ? (o/N)"
-        if ($showLogs -match '^[oO].*') {
-            Write-Host "Affichage des logs en temps reel (Ctrl+C pour quitter)..." -ForegroundColor Yellow
-            $logsCommand = "cd /home/thomas/ygg-stremio-ad && docker-compose logs -f ygg-stremio-ad"
-            ssh -t "$SERVER_USER@$SERVER_HOST" $logsCommand
-        }
-        
     } else {
-        Write-Host "Aucun changement detecte" -ForegroundColor Blue
+        $deployCommand = @'
+cd /home/thomas/ygg-stremio-ad
+echo "=== Arret conteneur ==="
+docker-compose down
+echo "=== Redemarrage avec build ==="
+docker-compose up -d --build
+echo "=== Attente (10s) ==="
+sleep 10
+echo "=== Status ==="
+docker-compose ps
+echo "=== Logs de demarrage ==="
+docker-compose logs --tail=25 ygg-stremio-ad
+echo "=== Redemarrage termine ==="
+'@
     }
+        
+    ssh "$SERVER_USER@$SERVER_HOST" $deployCommand
     
+    Write-Host ""
+    Write-Host "Synchronisation terminee" -ForegroundColor Green
+    Write-Host "Testez sur : $SERVER_URL" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Proposer de voir les logs en temps réel (comme le script bash)
+    $showLogs = Read-Host "Voulez-vous voir les logs en temps reel ? (o/N)"
+    if ($showLogs -match '^[oO].*') {
+        Write-Host "Logs en temps reel (Ctrl+C pour quitter)..." -ForegroundColor Yellow
+        $logsCommand = "cd /home/thomas/ygg-stremio-ad && docker-compose logs -f ygg-stremio-ad"
+        ssh -t "$SERVER_USER@$SERVER_HOST" $logsCommand
+    }
 } catch {
     Write-Host "Erreur lors de la synchronisation : $_" -ForegroundColor Red
-    
-    # Fallback : méthode alternative
-    Write-Host "Tentative avec methode alternative..." -ForegroundColor Yellow
-    Write-Host "Veuillez committer manuellement et utiliser deploy.ps1" -ForegroundColor Cyan
 }
 
 Write-Host ""
