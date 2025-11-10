@@ -1,7 +1,11 @@
 #!/bin/bash
 # Script de déploiement vers le serveur distant avec override
 
-echo "🚀 Déploiement et test sur 192.168.1.155..."
+# Charger la configuration
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/config.sh"
+
+echo "🚀 Déploiement et test sur $SERVER_HOST..."
 
 # Vérifier les changements non committés
 if [ -n "$(git status --porcelain)" ]; then
@@ -15,8 +19,8 @@ git push origin $(git branch --show-current)
 
 # Déploiement sur le serveur avec override pour build local
 echo "🔄 Déploiement sur le serveur avec build local..."
-ssh thomas@192.168.1.155 << 'EOF'
-    cd /home/thomas/ygg-stremio-ad || { echo "❌ Dossier projet non trouvé"; exit 1; }
+ssh $SERVER_USER@$SERVER_HOST << EOF
+    cd $SERVER_PROJECT_PATH || { echo "❌ Dossier projet non trouvé"; exit 1; }
     
     echo "📥 Récupération des dernières modifications..."
     git pull origin main
@@ -37,5 +41,5 @@ ssh thomas@192.168.1.155 << 'EOF'
     echo "✅ Déploiement terminé !"
 EOF
 
-echo "🎉 Déploiement réussi sur 192.168.1.155"
-echo "🌐 Addon disponible sur : http://192.168.1.155:5000"
+echo "🎉 Déploiement réussi sur $SERVER_HOST"
+echo "🌐 Addon disponible sur : ${SERVER_URL:-https://$SERVER_HOST:5000}"

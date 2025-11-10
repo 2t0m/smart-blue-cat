@@ -1,0 +1,16 @@
+#!/bin/bash
+# Configuration locale personnalisée
+# Copiez ce fichier vers config.local.sh et modifiez selon votre environnement
+
+# Configuration de votre serveur local
+SERVER_HOST="192.168.1.155"           # IP de votre serveur
+SERVER_USER="thomas"                  # Nom d'utilisateur SSH
+SERVER_PROJECT_PATH="/home/thomas/ygg-stremio-ad"   # Chemin du projet sur le serveur
+LOCAL_PROJECT_PATH="/Users/thomas/Visual Studio Code/ygg-stremio-ad"  # Chemin local
+
+# URL d'accès (optionnel)
+SERVER_URL="https://${SERVER_HOST}:5000"
+
+# Configuration additionnelle (optionnel)
+# DEFAULT_LOG_LEVEL="debug"
+# SSH_OPTIONS="-o ConnectTimeout=10"

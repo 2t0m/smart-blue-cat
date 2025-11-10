@@ -1,8 +1,12 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { getDatabasePath } = require('./environment');
 
-// Initialize the database
-const db = new sqlite3.Database(path.join('/data', 'streams.db'));
+// Initialize the database with environment-aware path
+const dbPath = getDatabasePath();
+const db = new sqlite3.Database(dbPath);
+
+console.log(`📊 Database initialized at: ${dbPath}`);
 
 // Create the tables if they don't exist
 db.serialize(() => {

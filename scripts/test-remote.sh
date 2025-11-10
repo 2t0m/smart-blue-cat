@@ -1,18 +1,22 @@
 #!/bin/bash
 # Script de test rapide sur le serveur distant avec override
 
+# Charger la configuration
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/config.sh"
+
 echo "🧪 Tests sur le serveur distant avec build local..."
 
 # Synchroniser le code en cours (y compris les modifications non committées)
 echo "📤 Synchronisation du code local..."
 rsync -avz --exclude='node_modules' --exclude='.git' --exclude='data' \
-    "/Users/thomas/Visual Studio Code/ygg-stremio-ad/" \
-    thomas@192.168.1.155:/home/thomas/ygg-stremio-ad/
+    "$LOCAL_PROJECT_PATH/" \
+    $SERVER_USER@$SERVER_HOST:$SERVER_PROJECT_PATH/
 
 # Exécuter les tests sur le serveur
 echo "🔨 Build et test sur le serveur..."
-ssh thomas@192.168.1.155 << 'EOF'
-    cd /home/thomas/ygg-stremio-ad
+ssh $SERVER_USER@$SERVER_HOST << EOF
+    cd $SERVER_PROJECT_PATH
     
     echo "🛑 Arrêt des conteneurs existants..."
     docker-compose down
@@ -45,7 +49,7 @@ EOF
 
 if [ $? -eq 0 ]; then
     echo "✅ Tests terminés avec succès"
-    echo "🌐 Addon disponible sur : http://192.168.1.155:5000"
+    echo "🌐 Addon disponible sur : ${SERVER_URL:-https://$SERVER_HOST:5000}"
 else
     echo "❌ Tests échoués"
     exit 1

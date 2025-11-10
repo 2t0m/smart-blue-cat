@@ -35,4 +35,4 @@ ssh $SERVER_USER@$SERVER_HOST << EOF
 EOF
 
 echo "✅ Synchronisation terminée"
-echo "🌐 Testez sur : http://192.168.1.155:5000"
+echo "🌐 Testez sur : ${SERVER_URL:-https://$SERVER_HOST:5000}"

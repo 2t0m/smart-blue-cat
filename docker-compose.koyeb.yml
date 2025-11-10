@@ -1,0 +1,29 @@
+services:
+  ygg-stremio-ad:
+    # For Koyeb deployment - no SSL handling needed, uses /tmp for database
+    image: ghcr.io/2t0m/ygg-stremio-ad:latest
+    container_name: ygg-stremio-ad-koyeb
+    environment:
+      # Environment detection
+      DEPLOYMENT_TARGET: "koyeb"
+      
+      # Koyeb-specific settings
+      PORT: 8000
+      LOG_LEVEL: "info"
+      
+      # Application settings (customize as needed)
+      CUSTOM_SEARCH_KEYWORDS: "tt0098749=keyword"
+      
+      # Database will use /tmp (no persistent volume needed)
+      
+    ports:
+      - 8000:8000
+    restart: unless-stopped
+    
+    # Health check for Koyeb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

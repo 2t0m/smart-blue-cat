@@ -1,21 +1,31 @@
 #!/bin/bash
-# Configuration initiale pour le workflow de développement
+# Configuration initiale pour le workflow de développement multi-environnement
 
 echo "🛠️  Configuration du workflow YGG Stremio AD..."
+
+# Créer la configuration locale si elle n'existe pas
+if [ ! -f "scripts/config.local.sh" ]; then
+    echo "⚙️  Création de la configuration locale..."
+    cp scripts/config.local.sh.example scripts/config.local.sh
+    echo "📝 Fichier scripts/config.local.sh créé depuis l'exemple"
+    echo "� Veuillez éditer scripts/config.local.sh avec vos informations de serveur"
+fi
 
 # Rendre les scripts exécutables
 chmod +x scripts/*.sh
 
-# Créer des alias utiles
+# Créer des alias utiles (mise à jour avec nouveaux scripts)
 echo "📝 Configuration des alias zsh..."
 {
     echo ""
     echo "# === YGG Stremio AD Aliases ==="
-    echo 'alias ygg-deploy="./scripts/deploy-local.sh"'
+    echo 'alias ygg-deploy="./scripts/deploy-smart.sh"'      # Nouveau : déploiement intelligent
+    echo 'alias ygg-deploy-local="./scripts/deploy-local.sh"' # Ancien : spécifique local
     echo 'alias ygg-test="./scripts/test-remote.sh"'
     echo 'alias ygg-sync="./scripts/sync-and-test.sh"'
     echo 'alias ygg-logs="./scripts/logs.sh"'
-    echo 'alias ygg-server="ssh thomas@192.168.1.155"'
+    echo 'alias ygg-server="ssh $SERVER_USER@$SERVER_HOST"'   # Utilise la config
+    echo 'alias ygg-koyeb="./scripts/koyeb-helper.sh"'      # Nouveau : aide Koyeb
     echo ""
 } >> ~/.zshrc
 
@@ -38,19 +48,23 @@ echo ""
 echo "✅ Configuration terminée !"
 echo ""
 echo "🚀 Commandes disponibles :"
-echo "  ygg-sync     → Sync + test instantané (sans commit)"
-echo "  ygg-test     → Test complet sur serveur"
-echo "  ygg-deploy   → Déploiement après commit"
-echo "  ygg-logs     → Logs en temps réel"
-echo "  ygg-server   → Connexion SSH au serveur"
+echo "  ygg-deploy       → Déploiement intelligent (auto-détection)"
+echo "  ygg-deploy-local → Déploiement serveur local"
+echo "  ygg-sync         → Sync + test instantané (sans commit)"
+echo "  ygg-test         → Test complet sur serveur"
+echo "  ygg-logs         → Logs en temps réel"
+echo "  ygg-server       → Connexion SSH au serveur"
+echo "  ygg-koyeb        → Aide pour déploiement Koyeb"
 echo ""
-echo "🔧 Debug et logs :"
-echo "  ./scripts/test-log-level.sh <level>  → Tester un niveau de log"
-echo "  Niveaux: error, warn, info, verbose, debug, silly"
-echo "  Voir LOG-LEVELS.md pour plus de détails"
+echo "🌐 Environnements supportés :"
+echo "  Local  : Serveur configuré (SSL + /data)"
+echo "  Koyeb  : *.koyeb.app:8000   (HTTP + /tmp)"
 echo ""
-echo "📁 Configuration :"
-echo "  Local:  /Users/thomas/Visual Studio Code/ygg-stremio-ad"
-echo "  Serveur: /home/thomas/ygg-stremio-ad"
-echo "  Données: /docker_data/ygg-stremio-ad/data"
-echo "  URL:     http://192.168.1.155:5000"
+echo "📖 Guides disponibles :"
+echo "  cat SCRIPTS-GUIDE.md → Guide détaillé des scripts"
+echo "  cat DEPLOYMENT.md    → Documentation déploiement"
+echo "  ygg-koyeb config     → Configuration Koyeb"
+echo ""
+echo "🔧 Configuration :"
+echo "  Éditez scripts/config.local.sh avec vos informations de serveur"
+echo "  Voir scripts/config.local.sh.example pour le format"
