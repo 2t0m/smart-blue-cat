@@ -25,7 +25,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.PAT_GHCR }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/build-push-action@v4
         with:
@@ -33,5 +33,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/your-username/your-project:latest
-            ghcr.io/your-username/your-project:${{ env.VERSION }}
+            ghcr.io/2t0m/smart-blue-cat:latest
+            ghcr.io/2t0m/smart-blue-cat:${{ env.VERSION }}
