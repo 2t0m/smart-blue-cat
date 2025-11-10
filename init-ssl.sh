@@ -77,7 +77,7 @@ setup_database() {
 }
 
 # Main setup
-echo "🚀 Starting YGG Stremio AD initialization..."
+echo "🚀 Starting Smart Blue Cat initialization..."
 
 setup_database
 setup_ssl

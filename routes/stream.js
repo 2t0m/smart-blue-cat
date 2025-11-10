@@ -143,11 +143,24 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
   const maxTorrentsToProcess = config.FILES_TO_SHOW * 2;
   const limitedTorrents = allTorrents.slice(0, maxTorrentsToProcess);
 
-  // Retrieve hashes for the torrents
+  // Retrieve hashes for the torrents and detect duplicates
   const magnets = [];
+  const hashSourceMap = new Map(); // Track which sources have which hashes
+  
   for (const torrent of limitedTorrents) {
     if (torrent.hash) {
-      magnets.push({ hash: torrent.hash, title: torrent.title, source: torrent.source || "Unknown" });
+      // Track sources for this hash
+      if (!hashSourceMap.has(torrent.hash)) {
+        hashSourceMap.set(torrent.hash, []);
+      }
+      hashSourceMap.get(torrent.hash).push(torrent.source);
+      
+      magnets.push({ 
+        hash: torrent.hash, 
+        title: torrent.title, 
+        source: torrent.source || "Unknown",
+        sources: hashSourceMap.get(torrent.hash) // All sources for this hash
+      });
     } else {
       const hash = await getTorrentHashFromYgg(torrent.id);
       if (hash) {
@@ -217,13 +230,26 @@ router.get('/:variables/stream/:type/:id.json', async (req, res) => {
 
         const unlockedLink = await unlockFileLink(file.link, config);
         if (unlockedLink) {
-          const { resolution, codec, source } = parseFileName(file.name);
+          const { resolution, codec, source, language, languageEmoji } = parseFileName(file.name);
+          
+          // Normalize and beautify the display
+          const qualityBadge = resolution === '2160p' ? '🏆' : resolution === '1080p' ? '⭐' : resolution === '720p' ? '✨' : '📺';
+          const codecBadge = codec.toLowerCase().includes('265') || codec.toLowerCase().includes('hevc') ? '🔥' : '🎬';
+          
+          // Determine source display
+          const isCommonHash = torrent.sources && torrent.sources.length > 1;
+          const sourceDisplay = isCommonHash 
+            ? `YGG + SW` 
+            : torrent.source === 'YGG' 
+              ? 'YGG' 
+              : 'SW';
+          
           streams.push({
-            name: `❤️ ${torrent.source} + AD | 🖥️ ${resolution} | 🎞️ ${codec}`,
-            title: `${tmdbData.title}${season && episode ? ` - S${season.padStart(2, '0')}E${episode.padStart(2, '0')}` : ''}\n${file.name}\n🎬 ${source} | 💾 ${formatSize(file.size)}`,
+            name: `😻 Miaou`,
+            title: `🎭 ${tmdbData.title}${season && episode ? ` • S${season.padStart(2, '0')}E${episode.padStart(2, '0')}` : ''}\n📁 ${file.name}\n🏴 ${sourceDisplay} ${languageEmoji} ${language} 🎨 ${source}\n💾 ${formatSize(file.size)} ${qualityBadge} ${resolution} ${codecBadge} ${codec.toUpperCase()}`,
             url: unlockedLink
           });
-          logger.info(`✅ Unlocked video: ${file.name}`);
+          logger.info(`✅ Unlocked video: ${file.name} (${isCommonHash ? 'Common hash' : torrent.source}) - ${language}`);
         }
       }
 

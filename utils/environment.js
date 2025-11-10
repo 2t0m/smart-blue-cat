@@ -58,7 +58,7 @@ function getEnvironmentConfig() {
       host: '0.0.0.0',
       sslCertPath: '/etc/ssl/certs/server.pem',
       sslKeyPath: '/etc/ssl/private/server.key',
-      baseUrl: process.env.BASE_URL || 'https://192.168.1.155:5000'
+      baseUrl: process.env.BASE_URL || 'https://your-server-ip:5000'
     },
     
     docker: {

@@ -33,5 +33,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/2t0m/ygg-stremio-ad:latest
-            ghcr.io/2t0m/ygg-stremio-ad:${{ env.VERSION }}
+            ghcr.io/your-username/your-project:latest
+            ghcr.io/your-username/your-project:${{ env.VERSION }}

@@ -10,5 +10,5 @@ echo "📋 Logs en temps réel du serveur $SERVER_HOST..."
 ssh $SERVER_USER@$SERVER_HOST << EOF
     cd $SERVER_PROJECT_PATH
     echo "🔍 Logs en temps réel (Ctrl+C pour quitter):"
-    docker-compose logs -f ygg-stremio-ad
+    docker-compose logs -f smart-blue-cat
 EOF

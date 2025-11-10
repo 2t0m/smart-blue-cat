@@ -4,16 +4,34 @@ function formatSize(bytes) {
   return gb.toFixed(2) + " GB";
 }
 
-// Extract resolution, codec, and source from a file name
+// Extract resolution, codec, source, and language from a file name
 function parseFileName(fileName) {
   const resolutionMatch = fileName.match(/(4k|\d{3,4}p)/i);
   const codecMatch = fileName.match(/(h.264|h.265|x.264|x.265|h264|h265|x264|x265|AV1|HEVC)/i);
   const sourceMatch = fileName.match(/(BluRay|WEB[-]?DL|WEB|HDRip|DVDRip|BRRip)/i);
+  
+  // Language detection with emojis
+  const languagePatterns = [
+    { pattern: /MULTI/i, name: 'MULTI', emoji: '🌍' },
+    { pattern: /VOSTFR/i, name: 'VOSTFR', emoji: '🇫🇷' },
+    { pattern: /FRENCH/i, name: 'FRENCH', emoji: '🇫🇷' },
+    { pattern: /TRUEFRENCH/i, name: 'TRUEFRENCH', emoji: '🇫🇷' },
+    { pattern: /VFF/i, name: 'VFF', emoji: '🇫🇷' },
+    { pattern: /VOF/i, name: 'VOF', emoji: '🇫🇷' },
+    { pattern: /ENGLISH/i, name: 'ENGLISH', emoji: '🇺🇸' },
+    { pattern: /SPANISH/i, name: 'SPANISH', emoji: '🇪🇸' },
+    { pattern: /GERMAN/i, name: 'GERMAN', emoji: '🇩🇪' },
+    { pattern: /ITALIAN/i, name: 'ITALIAN', emoji: '🇮🇹' }
+  ];
+  
+  const languageMatch = languagePatterns.find(lang => lang.pattern.test(fileName));
 
   return {
     resolution: resolutionMatch ? resolutionMatch[0] : "?",
     codec: codecMatch ? codecMatch[0] : "?",
-    source: sourceMatch ? sourceMatch[0] : "?"
+    source: sourceMatch ? sourceMatch[0] : "?",
+    language: languageMatch ? languageMatch.name : "?",
+    languageEmoji: languageMatch ? languageMatch.emoji : "🌐"
   };
 }
 

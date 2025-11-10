@@ -39,7 +39,7 @@ ssh $SERVER_USER@$SERVER_HOST << EOF
     sleep 10
     
     echo "📋 Logs récents avec niveau $LOG_LEVEL:"
-    docker-compose logs --tail=50 ygg-stremio-ad
+    docker-compose logs --tail=50 smart-blue-cat
 EOF
 
 echo "✅ Test terminé avec niveau $LOG_LEVEL"

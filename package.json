@@ -1,6 +1,6 @@
 {
-  "name": "ygg-stremio-ad",
-  "version": "0.0.1",
+  "name": "smart-blue-cat",
+  "version": "0.0.6",
   "main": "index.js",
   "dependencies": {
     "axios": "^1.8.4",

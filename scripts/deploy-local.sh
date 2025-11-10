@@ -1,45 +1,45 @@
 #!/bin/bash
-# Script de déploiement vers le serveur distant avec override
+# Deployment script to remote server with override
 
-# Charger la configuration
+# Load configuration
 SCRIPT_DIR="$(dirname "$0")"
 source "$SCRIPT_DIR/config.sh"
 
-echo "🚀 Déploiement et test sur $SERVER_HOST..."
+echo "🚀 Deploying and testing on $SERVER_HOST..."
 
-# Vérifier les changements non committés
+# Check for uncommitted changes
 if [ -n "$(git status --porcelain)" ]; then
-    echo "❌ Vous avez des changements non committés. Veuillez les commit d'abord."
+    echo "❌ You have uncommitted changes. Please commit them first."
     exit 1
 fi
 
-# Push vers GitHub
-echo "📤 Push vers GitHub..."
+# Push to GitHub
+echo "📤 Pushing to GitHub..."
 git push origin $(git branch --show-current)
 
-# Déploiement sur le serveur avec override pour build local
-echo "🔄 Déploiement sur le serveur avec build local..."
+# Deploy to server with override for local build
+echo "🔄 Deploying to server with local build..."
 ssh $SERVER_USER@$SERVER_HOST << EOF
-    cd $SERVER_PROJECT_PATH || { echo "❌ Dossier projet non trouvé"; exit 1; }
+    cd $SERVER_PROJECT_PATH || { echo "❌ Project folder not found"; exit 1; }
     
-    echo "📥 Récupération des dernières modifications..."
+    echo "📥 Fetching latest changes..."
     git pull origin main
     
-    echo "🛑 Arrêt des conteneurs..."
+    echo "🛑 Stopping containers..."
     docker-compose down
     
-    echo "🔨 Build et démarrage avec override..."
+    echo "🔨 Building and starting with override..."
     docker-compose up -d --build
     
-    echo "⏳ Attente du démarrage..."
+    echo "⏳ Waiting for startup..."
     sleep 5
     
-    echo "🔍 Vérification du statut..."
+    echo "🔍 Checking status..."
     docker-compose ps
-    docker-compose logs --tail=20 ygg-stremio-ad
+    docker-compose logs --tail=20 smart-blue-cat
     
-    echo "✅ Déploiement terminé !"
+    echo "✅ Deployment completed!"
 EOF
 
-echo "🎉 Déploiement réussi sur $SERVER_HOST"
-echo "🌐 Addon disponible sur : ${SERVER_URL:-https://$SERVER_HOST:5000}"
+echo "🎉 Deployment successful on $SERVER_HOST"
+echo "🌐 Addon available at: ${SERVER_URL:-https://$SERVER_HOST:5000}"

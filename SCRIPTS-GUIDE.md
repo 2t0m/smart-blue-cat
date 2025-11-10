@@ -1,227 +1,210 @@
-# 📋 Guide des Scripts YGG Stremio Add-on
+# 📋 Smart Blue Cat Scripts Guide
 
 ## 🔧 Configuration
 
 ### `config.sh`
-**Rôle** : Configuration centralisée pour tous les scripts  
-**Utilité** : Définit les variables d'environnement par défaut (exemples)  
-**Usage** : Chargé automatiquement par les autres scripts  
+**Role**: Centralized configuration for all scripts  
+**Purpose**: Defines default environment variables (examples)  
+**Usage**: Automatically loaded by other scripts  
 ```bash
-# Variables définies :
-SERVER_HOST="192.168.1.100"      # IP du serveur (exemple)
-SERVER_USER="user"               # Utilisateur SSH (exemple)
-SERVER_PROJECT_PATH="/home/user/ygg-stremio-ad"    # Chemin distant
-LOCAL_PROJECT_PATH="/path/to/local/project"        # Chemin local
+# Variables defined:
+SERVER_HOST="your-server-ip"      # Server IP (example)
+SERVER_USER="user"               # SSH user (example)
+SERVER_PROJECT_PATH="/home/user/smart-blue-cat"    # Remote path
+LOCAL_PROJECT_PATH="/path/to/local/project"        # Local path
 ```
 
 ### `config.local.sh` ⭐
-**Rôle** : Configuration personnelle (non versionnée)  
-**Utilité** : Contient VOS vraies informations de serveur  
-**Usage** : Copier depuis `config.local.sh.example` et personnaliser  
+**Role**: Personal configuration (not versioned)  
+**Purpose**: Contains YOUR real server information  
+**Usage**: Copy from `config.local.sh.example` and customize  
 ```bash
-# Exemple de contenu :
-SERVER_HOST="192.168.1.155"      # VOTRE IP
-SERVER_USER="thomas"             # VOTRE utilisateur
+# Example content:
+SERVER_HOST="your-server-ip"      # YOUR server IP
+SERVER_USER="username"             # YOUR username
 ```
 
 ### `config.local.sh.example`
-**Rôle** : Modèle de configuration personnelle  
-**Utilité** : Template pour créer votre config.local.sh  
-**Usage** : `cp config.local.sh.example config.local.sh`
+**Role**: Personal configuration template  
+**Purpose**: Template to create your config.local.sh  
+**Usage**: `cp config.local.sh.example config.local.sh`
 
 ---
 
-## 🚀 Scripts de Déploiement
+## 🚀 Deployment Scripts
 
-### `deploy-smart.sh` ⭐ (NOUVEAU)
-**Rôle** : Déploiement intelligent multi-environnement  
-**Utilité** : Détecte automatiquement où déployer (local vs Koyeb)  
-**Usage** : 
+### `deploy-smart.sh` ⭐ (NEW)
+**Role**: Intelligent multi-environment deployment  
+**Purpose**: Automatically detects where to deploy (local vs Koyeb)  
+**Usage**: 
 ```bash
-./scripts/deploy-smart.sh        # Auto-détection
-./scripts/deploy-smart.sh local  # Force serveur local
-./scripts/deploy-smart.sh koyeb  # Force préparation Koyeb
+./scripts/deploy-smart.sh        # Auto-detection
+./scripts/deploy-smart.sh local  # Force local server
+./scripts/deploy-smart.sh koyeb  # Force Koyeb preparation
 ```
 
 ### `deploy-local.sh`
-**Rôle** : Déploiement classique sur serveur local  
-**Utilité** : Deploy après commit vers votre serveur 192.168.1.155  
-**Usage** : 
+**Role**: Classic deployment to local server  
+**Purpose**: Deploy after commit to your server
+**Usage**: 
 ```bash
-./scripts/deploy-local.sh        # Deploy production locale
-ygg-deploy-local                 # Alias
-```
-
-### `sync-and-test.sh`
-**Rôle** : Synchronisation rapide pour développement  
-**Utilité** : Test immédiat sans commit (rsync + restart)  
-**Usage** : 
-```bash
-./scripts/sync-and-test.sh       # Sync rapide
-ygg-sync                         # Alias
+./scripts/deploy-local.sh        # Deploy local production
 ```
 
 ---
 
-## 🧪 Scripts de Test
+## ⚡ Development & Testing
 
-### `test-remote.sh`
-**Rôle** : Test complet sur serveur distant  
-**Utilité** : Build complet + tests sur serveur (sans commit)  
-**Usage** : 
+### `sync-and-test.sh` ⭐ (QUICK TEST)
+**Role**: Ultra-fast testing without commit  
+**Purpose**: Immediate test without commit (rsync + restart)  
+**Usage**: 
 ```bash
-./scripts/test-remote.sh         # Test complet
-ygg-test                         # Alias
+./scripts/sync-and-test.sh       # Quick test
 ```
 
-### `test-search.sh`
-**Rôle** : Test de recherche spécifique  
-**Utilité** : Teste la recherche pour un IMDB ID précis  
-**Usage** : 
+**Process**:
+1. 📤 Sync ALL files (even uncommitted) via rsync
+2. 🔄 Quick restart on remote server
+3. 📝 Show startup logs
+
+### `sync-and-test.sh`
+**Role**: Complete build + tests on server  
+**Purpose**: Complete build + tests on server (without commit)  
+**Usage**: 
 ```bash
-./scripts/test-search.sh tt0283226 4 17    # Test épisode S04E17
-./scripts/test-search.sh tt0098749         # Test film
+./scripts/sync-and-test.sh       # Complete test
+```
+
+---
+
+## 🔍 Testing Scripts
+
+### `test-search.sh`
+**Role**: Test search for specific content  
+**Purpose**: Tests search for a specific IMDB ID  
+**Usage**: 
+```bash
+./scripts/test-search.sh "tt1234567"  # Test specific IMDB
 ```
 
 ### `test-strategy.sh`
-**Rôle** : Test des stratégies de recherche  
-**Utilité** : Compare différentes approches (épisode → saison → série)  
-**Usage** : 
+**Role**: Strategy comparison testing  
+**Purpose**: Compare different approaches (episode → season → series)  
+**Usage**: 
 ```bash
-./scripts/test-strategy.sh       # Test stratégies automatiques
+./scripts/test-strategy.sh "Breaking Bad"
 ```
 
 ---
 
-## 📊 Scripts de Monitoring
+## 📊 Monitoring & Logs
 
 ### `logs.sh`
-**Rôle** : Affichage des logs en temps réel  
-**Utilité** : Suit les logs du conteneur Docker distant  
-**Usage** : 
+**Role**: Remote Docker logs monitoring  
+**Purpose**: Follow remote Docker container logs  
+**Usage**: 
 ```bash
-./scripts/logs.sh                # Logs temps réel
-ygg-logs                         # Alias
+./scripts/logs.sh               # Follow logs
+./scripts/logs.sh --tail 50     # Last 50 lines
 ```
 
 ### `test-log-level.sh`
-**Rôle** : Test avec niveau de log spécifique  
-**Utilité** : Redémarre avec un niveau de log pour debug  
-**Usage** : 
+**Role**: Debug with specific log level  
+**Purpose**: Restart with a log level for debugging  
+**Usage**: 
 ```bash
-./scripts/test-log-level.sh debug    # Test avec logs debug
-./scripts/test-log-level.sh silly    # Ultra-détaillé
+./scripts/test-log-level.sh debug    # Debug level
+./scripts/test-log-level.sh info     # Info level
 ```
 
 ### `set-log-level.sh`
-**Rôle** : Change le niveau de log à chaud  
-**Utilité** : Modifie docker-compose.override.yml  
-**Usage** : 
+**Role**: Persistent log level change  
+**Purpose**: Modifies docker-compose.override.yml  
+**Usage**: 
 ```bash
-./scripts/set-log-level.sh info      # Niveau standard
-./scripts/set-log-level.sh debug     # Niveau développement
+./scripts/set-log-level.sh debug     # Set debug permanently
 ```
 
 ---
 
-## ☁️ Scripts Koyeb (NOUVEAUX)
+## ☁️ Koyeb Helpers
 
-### `koyeb-helper.sh` ⭐
-**Rôle** : Aide pour déploiement Koyeb  
-**Utilité** : Config, test et troubleshooting Koyeb  
-**Usage** : 
+### `koyeb-helper.sh`
+**Role**: Koyeb deployment assistance  
+**Purpose**: Configuration and debugging for Koyeb  
+**Usage**: 
 ```bash
-./scripts/koyeb-helper.sh config           # Config recommandée
-./scripts/koyeb-helper.sh test             # Test image Docker
-./scripts/koyeb-helper.sh urls mydomain    # URLs d'accès
-./scripts/koyeb-helper.sh troubleshoot     # Guide debug
-ygg-koyeb                                  # Alias
+./scripts/koyeb-helper.sh config       # Show recommended config
+./scripts/koyeb-helper.sh test         # Test image locally
+./scripts/koyeb-helper.sh urls my.app  # Generate URLs
+./scripts/koyeb-helper.sh troubleshoot # Debug guide
 ```
 
 ---
 
-## 🎯 Workflow Recommandé
-
-### 1. **Configuration initiale**
-```bash
-# 1. Copier la configuration
-cp scripts/config.local.sh.example scripts/config.local.sh
-
-# 2. Éditer avec vos infos
-nano scripts/config.local.sh
-
-# 3. Setup initial
-./setup.sh
-```
-
-### 2. **Développement quotidien**
-```bash
-# Développement rapide (sans commit)
-ygg-sync                         # Sync + test
-
-# Test spécifique 
-./scripts/test-search.sh tt0283226 4 17
-
-# Voir les logs
-ygg-logs
-```
-
-### 3. **Déploiement production**
-```bash
-# Auto-détection (recommandé)
-ygg-deploy
-
-# Ou spécifique
-./scripts/deploy-smart.sh local     # Serveur local
-./scripts/deploy-smart.sh koyeb     # Cloud Koyeb
-```
-
-### 4. **Debug et troubleshooting**
-```bash
-# Changer niveau de log
-./scripts/set-log-level.sh debug
-
-# Test avec logs détaillés
-./scripts/test-log-level.sh verbose
-
-# Aide Koyeb
-ygg-koyeb troubleshoot
-```
-
----
-
-## 📁 Hiérarchie des Scripts
+## 📁 File Structure
 
 ```
 scripts/
-├── 🔧 Configuration
-│   ├── config.sh                 # Config par défaut (exemples)
-│   ├── config.local.sh.example   # Template personnalisable
-│   └── config.local.sh           # VOTRE config (non versionnée)
-│
-├── 🚀 Déploiement
-│   ├── deploy-smart.sh           # ⭐ Intelligent (auto-détection)
-│   ├── deploy-local.sh           # Classique serveur local
-│   └── sync-and-test.sh          # Sync rapide développement
-│
-├── 🧪 Tests
-│   ├── test-remote.sh            # Test complet distant
-│   ├── test-search.sh            # Test recherche spécifique
-│   └── test-strategy.sh          # Test stratégies
-│
-├── 📊 Monitoring
-│   ├── logs.sh                   # Logs temps réel
-│   ├── test-log-level.sh         # Test avec niveau spécifique
-│   └── set-log-level.sh          # Change niveau à chaud
-│
-└── ☁️ Koyeb
-    └── koyeb-helper.sh           # ⭐ Aide Koyeb complète
+├── config.sh                   # Default config (versioned)
+├── config.local.sh             # YOUR config (not versioned)
+├── config.local.sh.example     # Template
+├── deploy-smart.sh             # Smart deployment ⭐
+├── deploy-local.sh             # Local deployment
+├── sync-and-test.sh            # Quick testing ⭐
+├── logs.sh                     # Remote logs
+├── test-search.sh              # Search testing
+├── test-strategy.sh            # Strategy testing
+├── test-log-level.sh           # Debug with log level
+├── set-log-level.sh            # Set log level
+└── koyeb-helper.sh             # Koyeb assistance
 ```
 
-## 🔑 Points Clés
+---
 
-- ✅ **Aucune info personnelle** dans les scripts versionnés
-- ✅ **Configuration centralisée** via config.local.sh
-- ✅ **Multi-environnement** : local + Koyeb
-- ✅ **Auto-détection** intelligente
-- ✅ **Workflow optimisé** pour développement + production
+## 🚦 Typical Workflow
+
+### 🏃‍♂️ Quick Development
+```bash
+# 1. Make changes to code
+# 2. Test immediately without commit
+./scripts/sync-and-test.sh
+
+# 3. If working, commit and deploy
+git add . && git commit -m "Your changes"
+./scripts/deploy-smart.sh
+```
+
+### 🔍 Debug Session
+```bash
+# 1. Set debug level
+./scripts/set-log-level.sh debug
+
+# 2. Test with debug logs
+./scripts/sync-and-test.sh
+
+# 3. Follow logs in real-time
+./scripts/logs.sh
+```
+
+### 🧪 Search Testing
+```bash
+# Test specific content
+./scripts/test-search.sh "tt0944947"    # Game of Thrones
+
+# Test strategy comparison
+./scripts/test-strategy.sh "Breaking Bad"
+```
+
+### ☁️ Koyeb Deployment
+```bash
+# 1. Prepare for Koyeb
+./scripts/deploy-smart.sh koyeb
+
+# 2. Get Koyeb configuration
+./scripts/koyeb-helper.sh config
+
+# 3. Test locally first
+./scripts/koyeb-helper.sh test
+```

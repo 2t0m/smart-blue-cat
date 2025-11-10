@@ -13,8 +13,8 @@ if [ -z "$IMDB_ID" ]; then
     echo "Usage: $0 <IMDB_ID> [SEASON] [EPISODE]"
     echo ""
     echo "Exemples:"
-    echo "  $0 tt0283226 4 17     # Totally Spies S04E17"
-    echo "  $0 tt0098749          # Film (pas de saison/épisode)"
+    echo "  $0 tt0000000 1 1     # Example series S01E01"
+    echo "  $0 tt0000001          # Example movie (no season/episode)"
     echo ""
     exit 1
 fi
@@ -49,7 +49,7 @@ EOF
 echo "🚀 Test en cours..."
 
 # Faire la requête et capturer les logs en parallèle
-ssh $SERVER_USER@$SERVER_HOST "cd $SERVER_PROJECT_PATH && docker-compose logs -f ygg-stremio-ad" &
+ssh $SERVER_USER@$SERVER_HOST "cd $SERVER_PROJECT_PATH && docker-compose logs -f smart-blue-cat" &
 LOG_PID=$!
 
 sleep 2

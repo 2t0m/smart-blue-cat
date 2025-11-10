@@ -34,7 +34,7 @@ ssh $SERVER_USER@$SERVER_HOST << EOF
     docker-compose ps
     
     echo "📋 Logs récents:"
-    docker-compose logs --tail=30 ygg-stremio-ad
+    docker-compose logs --tail=30 smart-blue-cat
     
     echo "🌐 Test de connectivité:"
     curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/manifest.json || echo "❌ Service non accessible"

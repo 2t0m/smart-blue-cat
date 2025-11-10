@@ -1,26 +1,26 @@
 #!/bin/bash
-# Script de déploiement intelligent multi-environnement
+# Smart multi-environment deployment script
 
-# Charger la configuration
+# Load configuration
 SCRIPT_DIR="$(dirname "$0")"
 source "$SCRIPT_DIR/config.sh"
 
-# Fonction d'aide
+# Help function
 show_usage() {
     echo "Usage: $0 [ENVIRONMENT]"
     echo ""
     echo "ENVIRONMENT:"
-    echo "  local   → Déploiement sur serveur local ($SERVER_HOST)"
-    echo "  koyeb   → Préparation pour déploiement Koyeb"
-    echo "  auto    → Détection automatique (défaut)"
+    echo "  local   → Deploy to local server ($SERVER_HOST)"
+    echo "  koyeb   → Prepare for Koyeb deployment"
+    echo "  auto    → Automatic detection (default)"
     echo ""
-    echo "Exemples:"
-    echo "  $0 local     # Force déploiement local"
-    echo "  $0 koyeb     # Prépare pour Koyeb"
-    echo "  $0           # Détection auto"
+    echo "Examples:"
+    echo "  $0 local     # Force local deployment"
+    echo "  $0 koyeb     # Prepare for Koyeb"
+    echo "  $0           # Auto detection"
 }
 
-# Détecter l'environnement cible
+# Detect target environment
 detect_target_environment() {
     local forced_env="$1"
     
@@ -29,7 +29,7 @@ detect_target_environment() {
         return
     fi
     
-    # Auto-détection basée sur le contexte
+    # Auto-detection based on context
     if command -v ssh >/dev/null 2>&1 && ssh -q -o ConnectTimeout=5 $SERVER_USER@$SERVER_HOST exit 2>/dev/null; then
         echo "local"
     else
@@ -37,92 +37,92 @@ detect_target_environment() {
     fi
 }
 
-# Déploiement local (serveur configuré)
+# Local deployment (configured server)
 deploy_local() {
-    echo "🏠 Déploiement sur serveur local ($SERVER_HOST)..."
+    echo "🏠 Deploying to local server ($SERVER_HOST)..."
     
-    # Vérifier les changements non committés
+    # Check for uncommitted changes
     if [ -n "$(git status --porcelain)" ]; then
-        echo "❌ Vous avez des changements non committés. Veuillez les commit d'abord."
+        echo "❌ You have uncommitted changes. Please commit them first."
         exit 1
     fi
 
-    # Push vers GitHub
-    echo "📤 Push vers GitHub..."
+    # Push to GitHub
+    echo "📤 Pushing to GitHub..."
     git push origin $(git branch --show-current)
 
-    # Déploiement sur le serveur local
-    echo "🔄 Déploiement sur le serveur local..."
+    # Deploy to local server
+    echo "🔄 Deploying to local server..."
     ssh $SERVER_USER@$SERVER_HOST << EOF
-        cd $SERVER_PROJECT_PATH || { echo "❌ Dossier projet non trouvé"; exit 1; }
+        cd $SERVER_PROJECT_PATH || { echo "❌ Project folder not found"; exit 1; }
         
-        echo "📥 Récupération des dernières modifications..."
+        echo "📥 Fetching latest changes..."
         git pull origin main
         
-        echo "🛑 Arrêt des conteneurs..."
+        echo "🛑 Stopping containers..."
         docker-compose -f docker-compose.local.yml down
         
-        echo "🔨 Build et démarrage avec configuration locale..."
+        echo "🔨 Building and starting with local configuration..."
         docker-compose -f docker-compose.local.yml up -d --build
         
-        echo "⏳ Attente du démarrage..."
+        echo "⏳ Waiting for startup..."
         sleep 10
         
-        echo "🔍 Vérification du statut..."
+        echo "🔍 Checking status..."
         docker-compose -f docker-compose.local.yml ps
-        docker-compose -f docker-compose.local.yml logs --tail=20 ygg-stremio-ad-local
+        docker-compose -f docker-compose.local.yml logs --tail=20 smart-blue-cat-local
         
-        echo "✅ Déploiement local terminé !"
+        echo "✅ Local deployment completed!"
 EOF
 
     if [ $? -eq 0 ]; then
-        echo "🎉 Déploiement local réussi !"
-        echo "🌐 Addon disponible sur : ${SERVER_URL:-https://$SERVER_HOST:5000}"
-        echo "🔍 Logs en temps réel : ygg-logs"
+        echo "🎉 Local deployment successful!"
+        echo "🌐 Addon available at: ${SERVER_URL:-https://$SERVER_HOST:5000}"
+        echo "🔍 Real-time logs: smart-blue-cat-logs"
     else
-        echo "❌ Échec du déploiement local"
+        echo "❌ Local deployment failed"
         exit 1
     fi
 }
 
-# Préparation pour Koyeb
+# Prepare for Koyeb
 deploy_koyeb() {
-    echo "☁️ Préparation pour déploiement Koyeb..."
+    echo "☁️ Preparing for Koyeb deployment..."
     
-    # Vérifier que tout est committé
+    # Check that everything is committed
     if [ -n "$(git status --porcelain)" ]; then
-        echo "⚠️ Changements non committés détectés - les committing maintenant..."
+        echo "⚠️ Uncommitted changes detected - committing now..."
         git add .
         git commit -m "Deploy: Prepare for Koyeb deployment"
     fi
     
-    # Push vers GitHub (déclenchera l'image Docker)
-    echo "📤 Push vers GitHub..."
+    # Push to GitHub (will trigger Docker image)
+    echo "📤 Pushing to GitHub..."
     git push origin main
     
-    # Attendre que l'image soit buildée
-    echo "⏳ Attente du build de l'image Docker..."
+    # Wait for Docker image to be built
+    echo "⏳ Waiting for Docker image build..."
     sleep 30
     
     echo ""
-    echo "✅ Préparation pour Koyeb terminée !"
+    echo "✅ Koyeb preparation completed!"
     echo ""
-    echo "📋 Prochaines étapes manuelles sur Koyeb :"
-    echo "   1. Créer une nouvelle app sur https://app.koyeb.com/"
-    echo "   2. Utiliser l'image : ghcr.io/2t0m/ygg-stremio-ad:latest"
-    echo "   3. Configurer les variables d'environnement :"
+    echo "📋 Next manual steps on Koyeb:"
+    echo "   1. Create a new app on https://app.koyeb.com/"
+    echo "   2. Use image: ghcr.io/2t0m/smart-blue-cat:latest"
+    echo "   3. Configure environment variables:"
     echo "      - DEPLOYMENT_TARGET=koyeb"
     echo "      - PORT=8000"
     echo "      - LOG_LEVEL=info"
-    echo "      - CUSTOM_SEARCH_KEYWORDS=tt0098749=keyword"
-    echo "      - Vos clés API (TMDB, AllDebrid, etc.)"
-    echo "   4. Configurer le health check : /health"
-    echo "   5. Déployer !"
+    echo "      - CUSTOM_SEARCH_KEYWORDS=tt0000000=keyword"
+    echo "      - Your API keys (TMDB, AllDebrid, etc.)"
+    echo "   4. Configure health check: /health"
+    echo "   5. Deploy!"
     echo ""
-    echo "💡 L'addon sera accessible via votre domaine Koyeb"
+    echo "💡 The addon will be accessible via your Koyeb domain"
 }
 
-# Script principal
+# Main script
 main() {
     local target_env="$1"
     
@@ -133,8 +133,8 @@ main() {
     
     local env=$(detect_target_environment "$target_env")
     
-    echo "🚀 Déploiement YGG Stremio AD"
-    echo "🎯 Environnement cible : $env"
+    echo "🚀 Smart Blue Cat Deployment"
+    echo "🎯 Target environment: $env"
     echo ""
     
     case "$env" in
@@ -145,7 +145,7 @@ main() {
             deploy_koyeb
             ;;
         *)
-            echo "❌ Environnement non reconnu : $env"
+            echo "❌ Environment not recognized: $env"
             show_usage
             exit 1
             ;;

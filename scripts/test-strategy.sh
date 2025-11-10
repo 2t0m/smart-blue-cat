@@ -11,7 +11,7 @@ echo "============================================="
 # Test 1: Épisode spécifique qui n'existe probablement pas
 echo ""
 echo "📺 TEST 1: Épisode rare (S04E18) - doit fallback vers saison complète"
-echo "URL: http://$SERVER_HOST:5000/stream/series/tt0283226:4:18.json"
+echo "URL: http://$SERVER_HOST:5000/stream/series/tt0000000:1:1.json"
 
 # Synchroniser le code amélioré
 echo "📤 Synchronisation du code amélioré..."
@@ -31,7 +31,7 @@ EOF
 echo "🚀 Test en cours..."
 
 # Test de la requête
-RESPONSE=$(curl -s "http://$SERVER_HOST:5000/stream/series/tt0283226:4:18.json")
+RESPONSE=$(curl -s "http://$SERVER_HOST:5000/stream/series/tt0000000:1:1.json")
 STREAM_COUNT=$(echo "$RESPONSE" | jq '.streams | length' 2>/dev/null || echo "0")
 
 # S'assurer que STREAM_COUNT est un nombre
@@ -53,7 +53,7 @@ fi
 
 echo ""
 echo "📋 Voir les logs détaillés: ygg-logs"
-echo "🔧 Tester d'autres épisodes: ./scripts/test-search.sh tt0283226 [season] [episode]"
+echo "🔧 Test other episodes: ./scripts/test-search.sh tt0000000 [season] [episode]"
 echo ""
 echo "💡 Stratégies testées:"
 echo "   1. 🎯 Épisode spécifique (S04E18) - patterns flexibles"
