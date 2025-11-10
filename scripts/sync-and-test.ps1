@@ -45,22 +45,22 @@ try {
         # Pull sur le serveur et restart
         Write-Host "Deploiement sur le serveur..." -ForegroundColor Yellow
         
-        $deployCommand = @"
-cd $SERVER_PROJECT_PATH
+        $deployCommand = @'
+cd /home/thomas/ygg-stremio-ad
 echo "=== Git pull ==="
 git pull origin main
 echo "=== Arret conteneurs ==="
-docker-compose -f docker-compose.local.yml down
+docker-compose down
 echo "=== Build et redemarrage ==="
-docker-compose -f docker-compose.local.yml up -d --build
+docker-compose up -d --build
 echo "=== Attente demarrage (10s) ==="
 sleep 10
 echo "=== Status des conteneurs ==="
-docker-compose -f docker-compose.local.yml ps
+docker-compose ps
 echo "=== Logs de demarrage ==="
-docker-compose -f docker-compose.local.yml logs --tail=20 ygg-stremio-ad-local
+docker-compose logs --tail=20 ygg-stremio-ad
 echo "=== Deploiement termine ==="
-"@
+'@
         
         ssh "$SERVER_USER@$SERVER_HOST" $deployCommand
         
@@ -73,7 +73,7 @@ echo "=== Deploiement termine ==="
         $showLogs = Read-Host "Voulez-vous voir les logs en temps reel ? (o/N)"
         if ($showLogs -match '^[oO].*') {
             Write-Host "Affichage des logs en temps reel (Ctrl+C pour quitter)..." -ForegroundColor Yellow
-            $logsCommand = "cd $SERVER_PROJECT_PATH && docker-compose -f docker-compose.local.yml logs -f ygg-stremio-ad-local"
+            $logsCommand = "cd /home/thomas/ygg-stremio-ad && docker-compose logs -f ygg-stremio-ad"
             ssh -t "$SERVER_USER@$SERVER_HOST" $logsCommand
         }
         
