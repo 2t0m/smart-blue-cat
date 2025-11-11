@@ -96,6 +96,7 @@
           document.getElementById('codecs').value = (decodedConfig.CODECS_TO_SHOW || []).join(",");
           document.getElementById('alldebrid').value = decodedConfig.API_KEY_ALLEDBRID || "";
           document.getElementById('sharewood').value = decodedConfig.SHAREWOOD_PASSKEY || "";
+          document.getElementById('names').value = (decodedConfig.NAMES || "");
           document.getElementById('accesskey').value = decodedConfig.ACCESS_KEY || "";
         } catch (error) {
           console.error("Error decoding configuration:", error);
@@ -112,6 +113,7 @@
         CODECS_TO_SHOW: document.getElementById('codecs').value.split(',').map(s => s.trim()),
         API_KEY_ALLEDBRID: document.getElementById('alldebrid').value,
         SHAREWOOD_PASSKEY: document.getElementById('sharewood').value,
+        NAMES: document.getElementById('names').value,
         ACCESS_KEY: document.getElementById('accesskey').value
       };
       const encodedConfig = btoa(JSON.stringify(config));
@@ -124,8 +126,8 @@
       // Check if access key is provided
       const accessKey = document.getElementById('accesskey').value;
       const keyWarning = accessKey 
-        ? '<p style="color: #27ae60; font-weight: bold;">🔒 Clé d\'accès incluse dans la configuration - Vos amis pourront utiliser l\'addon</p>'
-        : '<p style="color: #e74c3c; font-weight: bold;">⚠️ Aucune clé d\'accès - L\'addon ne fonctionnera pas sans clé valide !</p>';
+        ? '<p style="color: #27ae60; font-weight: bold;">🔒 Access key included in configuration - Your friends can use the addon</p>'
+        : '<p style="color: #e74c3c; font-weight: bold;">⚠️ No access key - The addon will not work without a valid key!</p>';
       
       document.getElementById('result').innerHTML = `
         ${keyWarning}
@@ -149,7 +151,7 @@
             ${baseUrl}/${encodedConfig}/stream/movie/tt1234567.json
           </a>
         </p>
-        ${accessKey ? '<p style="color: #2980b9; font-size: 0.9em;">💡 La clé est encodée dans l\'URL - Partagez ces liens avec vos amis</p>' : '<p style="color: #e74c3c; font-size: 0.9em;">⚠️ Vous devez entrer une clé d\'accès valide pour que l\'addon fonctionne</p>'}
+        ${accessKey ? '<p style="color: #2980b9; font-size: 0.9em;">💡 The key is encoded in the URL - Share these links with your friends</p>' : '<p style="color: #e74c3c; font-size: 0.9em;">⚠️ You must enter a valid access key for the addon to work</p>'}
       `;
     }
 
@@ -177,13 +179,16 @@
     <label for="alldebrid">AllDebrid API Key</label>
     <input type="text" id="alldebrid" placeholder="Enter your AllDebrid API Key">
 
-    <label for="sharewood">Sharewood Passkey</label>
-    <input type="text" id="sharewood" placeholder="Enter your Sharewood Passkey">
+  <label for="sharewood">Sharewood Passkey</label>
+  <input type="text" id="sharewood" placeholder="Enter your Sharewood Passkey">
 
-    <label for="accesskey">🔒 Access Key</label>
-    <input type="text" id="accesskey" placeholder="Enter your access key to secure the addon">
-    
-    <button onclick="generateConfig()">Générer la configuration</button>
+  <label for="names">Names (comma separated)</label>
+  <input type="text" id="names" placeholder="Ex: Thomas,Lucie,Amélie">
+
+  <label for="accesskey">🔒 Access Key</label>
+  <input type="text" id="accesskey" placeholder="Enter your access key to secure the addon">
+
+  <button onclick="generateConfig()">Generate Configuration</button>
     <div id="result" class="result"></div>
   </div>
 </body>

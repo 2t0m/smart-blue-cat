@@ -11,7 +11,8 @@ async function getTmdbData(imdbId, config) {
       return {
         type: cachedData.type,
         title: cachedData.title,
-        frenchTitle: cachedData.french_title
+        frenchTitle: cachedData.french_title,
+        year: cachedData.year
       };
     }
 
@@ -26,25 +27,27 @@ async function getTmdbData(imdbId, config) {
     if (response.data.movie_results?.length > 0) {
       const title = response.data.movie_results[0].title;
       const frenchTitle = response.data.movie_results[0].original_title;
+      const year = response.data.movie_results[0].release_date?.split('-')[0];
 
-      logger.info(`✅ Movie found: ${title} (FR Title: ${frenchTitle})`);
+      logger.info(`✅ Movie found: ${title} (${year}) (FR Title: ${frenchTitle})`);
 
       // Stocker les données dans le cache
-      await storeTmdb(imdbId, "movie", title, frenchTitle);
+      await storeTmdb(imdbId, "movie", title, frenchTitle, year);
 
-      return { type: "movie", title, frenchTitle };
+      return { type: "movie", title, frenchTitle, year };
     }
 
     // Check if the result is a TV series
     if (response.data.tv_results?.length > 0) {
       const title = response.data.tv_results[0].name;
       const frenchTitle = response.data.tv_results[0].original_name;
+      const year = response.data.tv_results[0].first_air_date?.split('-')[0];
 
-      logger.info(`✅ Series found: ${title} (FR Title: ${frenchTitle})`);
+      logger.info(`✅ Series found: ${title} (${year}) (FR Title: ${frenchTitle})`);
 
-      await storeTmdb(imdbId, "series", title, frenchTitle);
+      await storeTmdb(imdbId, "series", title, frenchTitle, year);
 
-      return { type: "series", title, frenchTitle };
+      return { type: "series", title, frenchTitle, year };
     }
   } catch (error) {
     logger.error(`❌ TMDB Error for IMDB ID: ${imdbId}`, error.response?.data || error.message);

@@ -168,12 +168,15 @@ function processTorrents(torrents, type, season, episode, config) {
 }
 
 // Search for torrents on YggTorrent
-async function searchYgg(title, type, season, episode, config, titleFR = null, imdbId = null) {
+async function searchYgg(title, type, season, episode, config, titleFR = null, imdbId = null, year = null) {
   logger.search(`Searching for torrents on YggTorrent`);
-  logger.verbose(`🎯 Search params - Title: "${title}", Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+  logger.verbose(`🎯 Search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
 
-  // Use the title for the search
-  let searchTitle = title;
+  // Use the title for the search, add year for movies to improve accuracy
+  let searchTitle = (type === 'movie' && year) ? `${title} ${year}` : title;
+  if (type === 'movie' && year) {
+    logger.info(`🎬 Adding year to movie search: "${title}" → "${searchTitle}"`);
+  }
 
   // Check for custom search keywords
   const customKeywords = process.env.CUSTOM_SEARCH_KEYWORDS || "";

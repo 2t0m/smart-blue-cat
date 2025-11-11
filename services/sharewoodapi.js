@@ -8,7 +8,7 @@ const SUBCATEGORY_MAP = {
 };
 
 // Perform a search on Sharewood
-async function searchSharewood(title, type, season = null, episode = null, config) {
+async function searchSharewood(title, type, season = null, episode = null, config, year = null) {
   const subcategories = SUBCATEGORY_MAP[type];
   if (!subcategories) {
     logger.error(`❌ Invalid type "${type}" for Sharewood search.`);
@@ -22,10 +22,14 @@ async function searchSharewood(title, type, season = null, episode = null, confi
 
   const subcategoryParams = subcategories.map(id => `subcategory_id=${id}`).join(',');
   const seasonFormatted = season ? ` S${season.padStart(2, '0')}` : '';
-  const requestUrl = `https://www.sharewood.tv/api/${config.SHAREWOOD_PASSKEY}/search?name=${encodeURIComponent(title + " " +seasonFormatted)}&category=1&subcategory_id=${subcategoryParams}`;
+  const yearFormatted = (type === 'movie' && year) ? ` ${year}` : '';
+  const requestUrl = `https://www.sharewood.tv/api/${config.SHAREWOOD_PASSKEY}/search?name=${encodeURIComponent(title + yearFormatted + " " +seasonFormatted)}&category=1&subcategory_id=${subcategoryParams}`;
 
   logger.search(`Searching for torrents on Sharewood`);
-  logger.verbose(`🎯 Sharewood search params - Title: "${title}", Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+  logger.verbose(`🎯 Sharewood search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+  if (type === 'movie' && year) {
+    logger.info(`🎬 Adding year to Sharewood movie search: "${title}" → "${title} ${year}"`);
+  }
   logger.debug(`🔍 Performing Sharewood search with URL: ${requestUrl}`);
 
   try {
@@ -209,13 +213,16 @@ function meetsCriteria(torrent, config) {
   const language = (torrent.language || '').toLowerCase();
   
   const hasValidResolution = config.RES_TO_SHOW.some(res => name.includes(res.toLowerCase()));
-  const hasValidLanguage = config.LANG_TO_SHOW.some(lang => language.includes(lang.toLowerCase()));
+  // Check language in both torrent.language AND torrent.name
+  const hasValidLanguage = config.LANG_TO_SHOW.some(lang => 
+    language.includes(lang.toLowerCase()) || name.includes(lang.toLowerCase())
+  );
   const hasValidCodec = config.CODECS_TO_SHOW.some(codec => name.includes(codec.toLowerCase()));
   
   const isValid = hasValidResolution && hasValidLanguage && hasValidCodec;
   
   if (!isValid) {
-    logger.debug(`❌ Torrent filtered out: "${torrent.name}" - Res:${hasValidResolution} Lang:${hasValidLanguage} Codec:${hasValidCodec}`);
+    logger.debug(`❌ Torrent filtered out: "${torrent.name}" - Res:${hasValidResolution} Lang:${hasValidLanguage} Codec:${hasValidCodec} (language field: "${language}")`);
   }
   
   return isValid;

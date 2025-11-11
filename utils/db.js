@@ -16,6 +16,7 @@ db.serialize(() => {
       type TEXT,
       title TEXT,
       french_title TEXT,
+      year TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -34,7 +35,7 @@ db.serialize(() => {
 function getCachedTmdb(imdbId) {
   return new Promise((resolve, reject) => {
     db.get(
-      `SELECT type, title, french_title FROM tmdb_cache WHERE imdb_id = ?`,
+      `SELECT type, title, french_title, year FROM tmdb_cache WHERE imdb_id = ?`,
       [imdbId],
       (err, row) => {
         if (err) {
@@ -47,11 +48,11 @@ function getCachedTmdb(imdbId) {
 }
 
 // Store TMDB data in the cache
-function storeTmdb(imdbId, type, title, frenchTitle) {
+function storeTmdb(imdbId, type, title, frenchTitle, year) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT OR REPLACE INTO tmdb_cache (imdb_id, type, title, french_title) VALUES (?, ?, ?, ?)`,
-      [imdbId, type, title, frenchTitle],
+      `INSERT OR REPLACE INTO tmdb_cache (imdb_id, type, title, french_title, year) VALUES (?, ?, ?, ?, ?)`,
+      [imdbId, type, title, frenchTitle, year],
       function (err) {
         if (err) {
           return reject(err);

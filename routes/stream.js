@@ -23,6 +23,9 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
     return res.status(400).json({ error: e.message });
   }
 
+  // Parse optional NAMES from configuration (comma separated)
+  const names = (config.NAMES || "").split(',').map(s => s.trim()).filter(Boolean);
+
   const { type, id } = req.params;
   logger.request(`Stream request received for ID: ${id}`);
   logger.debug(`📋 Request details - Type: ${type}, Full ID: ${id}`);
@@ -46,7 +49,7 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
   logger.verbose(`📽️ TMDB Data - Title: "${tmdbData.title}", French: "${tmdbData.frenchTitle}", Type: ${tmdbData.type}`);
 
   // Call searchYgg and searchSharewood to retrieve processed torrents
-  logger.search(`Starting parallel search on YGG and Sharewood for "${tmdbData.title}"`);
+  logger.search(`Starting parallel search on YGG and Sharewood for "${tmdbData.title}"${tmdbData.year ? ` (${tmdbData.year})` : ''}`);
   const [yggResults, sharewoodResults] = await Promise.all([
     searchYgg(
       tmdbData.title,
@@ -55,14 +58,16 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
       episode,
       config,
       tmdbData.frenchTitle,
-      imdbId
+      imdbId,
+      tmdbData.year
     ),
     searchSharewood(
       tmdbData.title,
       tmdbData.type,
       season,
       episode,
-      config
+      config,
+      tmdbData.year
     )
   ]);
 
@@ -245,8 +250,9 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
               ? 'YGG' 
               : 'SW';
           
+          const randomName = names.length ? names[Math.floor(Math.random() * names.length)] : null;
           streams.push({
-            name: `😻 Miaou`,
+            name: randomName ? `😻 Miaou ${randomName}` : `😻 Miaou`,
             title: `🎭 ${tmdbData.title}${season && episode ? ` • S${season.padStart(2, '0')}E${episode.padStart(2, '0')}` : ''}\n📁 ${file.name}\n🏴 ${sourceDisplay} ${languageEmoji} ${language} 🎨 ${source}\n💾 ${formatSize(file.size)} ${qualityBadge} ${resolution} ${codecBadge} ${codec.toUpperCase()}`,
             url: unlockedLink
           });
