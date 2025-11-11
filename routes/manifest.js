@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const router = express.Router();
 const { getConfig } = require('../utils/helpers');
+const { requireAccessKey } = require('../utils/auth');
 
 // Read version from VERSION file
 function getVersion() {
@@ -16,7 +17,7 @@ function getVersion() {
 }
 
 // Serve the manifest file
-router.get('/:variables/manifest.json', (req, res) => {
+router.get('/:variables/manifest.json', requireAccessKey, (req, res) => {
   let config;
 
   // Retrieve configuration

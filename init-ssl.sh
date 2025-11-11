@@ -2,9 +2,7 @@
 
 # Detect environment and setup SSL accordingly
 detect_environment() {
-    if [ ! -z "$KOYEB_PUBLIC_DOMAIN" ] || [ ! -z "$KOYEB_DEPLOYMENT_ID" ] || [ ! -z "$KOYEB_APP_NAME" ]; then
-        echo "koyeb"
-    elif [ "$DEPLOYMENT_TARGET" = "local" ]; then
+    if [ "$DEPLOYMENT_TARGET" = "local" ]; then
         echo "local"
     else
         echo "docker"
@@ -16,12 +14,7 @@ setup_ssl() {
     
     echo "🌐 Environment detected: $env"
     
-    if [ "$env" = "koyeb" ]; then
-        echo "📄 Koyeb environment - SSL handled by platform, skipping certificate download"
-        return 0
-    fi
-    
-    # For local and docker environments, setup SSL certificates
+    # Setup SSL certificates
     echo "🔒 Setting up SSL certificates for $env environment..."
     
     # Paths to SSL files
@@ -58,15 +51,8 @@ setup_ssl() {
 
 # Setup database directory based on environment
 setup_database() {
-    local env=$(detect_environment)
-    
-    if [ "$env" = "koyeb" ]; then
-        DB_PATH="/tmp"
-        echo "📂 Using temporary database path for Koyeb: $DB_PATH"
-    else
-        DB_PATH="/data"
-        echo "📂 Using persistent database path: $DB_PATH"
-    fi
+    DB_PATH="/data"
+    echo "📂 Using persistent database path: $DB_PATH"
     
     # Create directory if it doesn't exist
     mkdir -p "$DB_PATH"

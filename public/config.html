@@ -96,6 +96,7 @@
           document.getElementById('codecs').value = (decodedConfig.CODECS_TO_SHOW || []).join(",");
           document.getElementById('alldebrid').value = decodedConfig.API_KEY_ALLEDBRID || "";
           document.getElementById('sharewood').value = decodedConfig.SHAREWOOD_PASSKEY || "";
+          document.getElementById('accesskey').value = decodedConfig.ACCESS_KEY || "";
         } catch (error) {
           console.error("Error decoding configuration:", error);
         }
@@ -110,7 +111,8 @@
         LANG_TO_SHOW: document.getElementById('lang').value.split(',').map(s => s.trim()),
         CODECS_TO_SHOW: document.getElementById('codecs').value.split(',').map(s => s.trim()),
         API_KEY_ALLEDBRID: document.getElementById('alldebrid').value,
-        SHAREWOOD_PASSKEY: document.getElementById('sharewood').value
+        SHAREWOOD_PASSKEY: document.getElementById('sharewood').value,
+        ACCESS_KEY: document.getElementById('accesskey').value
       };
       const encodedConfig = btoa(JSON.stringify(config));
       
@@ -119,7 +121,14 @@
       const port = window.location.port ? ':' + window.location.port : '';
       const baseUrl = `${protocol}//${host}${port}`;
       
+      // Check if access key is provided
+      const accessKey = document.getElementById('accesskey').value;
+      const keyWarning = accessKey 
+        ? '<p style="color: #27ae60; font-weight: bold;">🔒 Clé d\'accès incluse dans la configuration - Vos amis pourront utiliser l\'addon</p>'
+        : '<p style="color: #e74c3c; font-weight: bold;">⚠️ Aucune clé d\'accès - L\'addon ne fonctionnera pas sans clé valide !</p>';
+      
       document.getElementById('result').innerHTML = `
+        ${keyWarning}
         <p><strong>Encoded Configuration (base64):</strong></p>
         <p>${encodedConfig}</p>
         <p><strong>Configuration Page Link:</strong></p>
@@ -128,7 +137,7 @@
             ${baseUrl}/${encodedConfig}/configure
           </a>
         </p>
-        <p><strong>Manifest Link:</strong></p>
+        <p><strong>Manifest Link (pour Stremio):</strong></p>
         <p>
           <a href="${baseUrl}/${encodedConfig}/manifest.json" target="_blank">
             ${baseUrl}/${encodedConfig}/manifest.json
@@ -140,6 +149,7 @@
             ${baseUrl}/${encodedConfig}/stream/movie/tt1234567.json
           </a>
         </p>
+        ${accessKey ? '<p style="color: #2980b9; font-size: 0.9em;">💡 La clé est encodée dans l\'URL - Partagez ces liens avec vos amis</p>' : '<p style="color: #e74c3c; font-size: 0.9em;">⚠️ Vous devez entrer une clé d\'accès valide pour que l\'addon fonctionne</p>'}
       `;
     }
 
@@ -169,6 +179,9 @@
 
     <label for="sharewood">Sharewood Passkey</label>
     <input type="text" id="sharewood" placeholder="Enter your Sharewood Passkey">
+
+    <label for="accesskey">🔒 Access Key</label>
+    <input type="text" id="accesskey" placeholder="Enter your access key to secure the addon">
     
     <button onclick="generateConfig()">Générer la configuration</button>
     <div id="result" class="result"></div>

@@ -19,13 +19,10 @@ echo "📝 Configuring zsh aliases..."
 {
     echo ""
     echo "# === Smart Blue Cat Aliases ==="
-    echo 'alias ygg-deploy="./scripts/deploy-smart.sh"'      # New: smart deployment
-    echo 'alias ygg-deploy-local="./scripts/deploy-local.sh"' # Old: local specific
-    echo 'alias ygg-test="./scripts/test-remote.sh"'
-    echo 'alias ygg-sync="./scripts/sync-and-test.sh"'
-    echo 'alias ygg-logs="./scripts/logs.sh"'
-    echo 'alias ygg-server="ssh $SERVER_USER@$SERVER_HOST"'   # Uses config
-    echo 'alias ygg-koyeb="./scripts/koyeb-helper.sh"'      # New: Koyeb helper
+    echo 'alias smart-blue-cat-test="./scripts/test-remote.sh"'
+    echo 'alias smart-blue-cat-sync="./scripts/sync-and-test.sh"'
+    echo 'alias smart-blue-cat-logs="./scripts/logs.sh"'
+    echo 'alias smart-blue-cat-server="ssh $SERVER_USER@$SERVER_HOST"'   # Uses config
     echo ""
 } >> ~/.zshrc
 
@@ -48,22 +45,16 @@ echo ""
 echo "✅ Configuration complete!"
 echo ""
 echo "🚀 Available commands:"
-echo "  ygg-deploy       → Smart deployment (auto-detection)"
-echo "  ygg-deploy-local → Local server deployment"
-echo "  ygg-sync         → Sync + instant test (no commit)"
-echo "  ygg-test         → Full server test"
-echo "  ygg-logs         → Real-time logs"
-echo "  ygg-server       → SSH connection to server"
-echo "  ygg-koyeb        → Koyeb deployment helper"
+echo "  smart-blue-cat-sync   → Sync + instant test (no commit)"
+echo "  smart-blue-cat-test   → Full server test"
+echo "  smart-blue-cat-logs   → Real-time logs"
+echo "  smart-blue-cat-server → SSH connection to server"
 echo ""
-echo "🌐 Supported environments:"
-echo "  Local  : Configured server (SSL + /data)"
-echo "  Koyeb  : *.koyeb.app:8000   (HTTP + /tmp)"
+echo "🌐 Environment:"
+echo "  Local server (SSL + /data)"
 echo ""
 echo "📖 Available guides:"
 echo "  cat SCRIPTS-GUIDE.md → Detailed script guide"
-echo "  cat DEPLOYMENT.md    → Deployment documentation"
-echo "  ygg-koyeb config     → Koyeb configuration"
 echo ""
 echo "🔧 Configuration:"
 echo "  Edit scripts/config.local.sh with your server information"

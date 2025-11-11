@@ -86,7 +86,7 @@ if (isSSLEnabled()) {
     });
   }
 } else {
-  // Koyeb and other platforms that handle SSL termination
+  // HTTP server for non-SSL environments
   http.createServer(app).listen(PORT, HOST, () => {
     logger.info(`✅ HTTP server running on ${HOST}:${PORT} (${envConfig.environment})`);
     logger.info(`🔗 Base URL: ${envConfig.baseUrl}`);

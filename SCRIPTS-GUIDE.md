@@ -31,26 +31,6 @@ SERVER_USER="username"             # YOUR username
 
 ---
 
-## 🚀 Deployment Scripts
-
-### `deploy-smart.sh` ⭐ (NEW)
-**Role**: Intelligent multi-environment deployment  
-**Purpose**: Automatically detects where to deploy (local vs Koyeb)  
-**Usage**: 
-```bash
-./scripts/deploy-smart.sh        # Auto-detection
-./scripts/deploy-smart.sh local  # Force local server
-./scripts/deploy-smart.sh koyeb  # Force Koyeb preparation
-```
-
-### `deploy-local.sh`
-**Role**: Classic deployment to local server  
-**Purpose**: Deploy after commit to your server
-**Usage**: 
-```bash
-./scripts/deploy-local.sh        # Deploy local production
-```
-
 ---
 
 ## ⚡ Development & Testing
@@ -128,21 +108,6 @@ SERVER_USER="username"             # YOUR username
 
 ---
 
-## ☁️ Koyeb Helpers
-
-### `koyeb-helper.sh`
-**Role**: Koyeb deployment assistance  
-**Purpose**: Configuration and debugging for Koyeb  
-**Usage**: 
-```bash
-./scripts/koyeb-helper.sh config       # Show recommended config
-./scripts/koyeb-helper.sh test         # Test image locally
-./scripts/koyeb-helper.sh urls my.app  # Generate URLs
-./scripts/koyeb-helper.sh troubleshoot # Debug guide
-```
-
----
-
 ## 📁 File Structure
 
 ```
@@ -150,15 +115,13 @@ scripts/
 ├── config.sh                   # Default config (versioned)
 ├── config.local.sh             # YOUR config (not versioned)
 ├── config.local.sh.example     # Template
-├── deploy-smart.sh             # Smart deployment ⭐
-├── deploy-local.sh             # Local deployment
 ├── sync-and-test.sh            # Quick testing ⭐
 ├── logs.sh                     # Remote logs
 ├── test-search.sh              # Search testing
 ├── test-strategy.sh            # Strategy testing
 ├── test-log-level.sh           # Debug with log level
 ├── set-log-level.sh            # Set log level
-└── koyeb-helper.sh             # Koyeb assistance
+└── test-remote.sh              # Remote testing
 ```
 
 ---
@@ -171,9 +134,9 @@ scripts/
 # 2. Test immediately without commit
 ./scripts/sync-and-test.sh
 
-# 3. If working, commit and deploy
+# 3. If working, commit and push
 git add . && git commit -m "Your changes"
-./scripts/deploy-smart.sh
+git push
 ```
 
 ### 🔍 Debug Session
@@ -196,15 +159,5 @@ git add . && git commit -m "Your changes"
 # Test strategy comparison
 ./scripts/test-strategy.sh "Breaking Bad"
 ```
-
-### ☁️ Koyeb Deployment
-```bash
-# 1. Prepare for Koyeb
-./scripts/deploy-smart.sh koyeb
-
-# 2. Get Koyeb configuration
-./scripts/koyeb-helper.sh config
-
-# 3. Test locally first
-./scripts/koyeb-helper.sh test
-```
+````
+````

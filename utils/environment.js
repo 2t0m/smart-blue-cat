@@ -4,16 +4,9 @@ const logger = require('./logger');
 
 /**
  * Detect the current deployment environment
- * @returns {string} Environment type: 'koyeb', 'local', or 'docker'
+ * @returns {string} Environment type: 'local' or 'docker'
  */
 function detectEnvironment() {
-  // Koyeb detection
-  if (process.env.KOYEB_PUBLIC_DOMAIN || 
-      process.env.KOYEB_DEPLOYMENT_ID || 
-      process.env.KOYEB_APP_NAME) {
-    return 'koyeb';
-  }
-  
   // Local server detection (via custom environment variable)
   if (process.env.DEPLOYMENT_TARGET === 'local') {
     return 'local';
@@ -37,19 +30,6 @@ function getEnvironmentConfig() {
   const env = detectEnvironment();
   
   const configs = {
-    koyeb: {
-      environment: 'koyeb',
-      sslEnabled: false,  // Koyeb handles SSL/TLS termination
-      dbPath: '/tmp',     // Temporary storage on Koyeb
-      port: process.env.PORT || 8000,  // Koyeb typically uses port 8000
-      host: '0.0.0.0',
-      sslCertPath: null,
-      sslKeyPath: null,
-      baseUrl: process.env.KOYEB_PUBLIC_DOMAIN 
-        ? `https://${process.env.KOYEB_PUBLIC_DOMAIN}`
-        : 'https://your-app.koyeb.app'
-    },
-    
     local: {
       environment: 'local',
       sslEnabled: true,   // Local server needs SSL for Stremio

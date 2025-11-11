@@ -5,10 +5,11 @@ const { searchSharewood } = require('../services/sharewoodapi');
 const { uploadMagnets, getFilesFromMagnetId, unlockFileLink } = require('../services/alldebrid');
 const { parseFileName, formatSize, getConfig } = require('../utils/helpers');
 const logger = require('../utils/logger');
+const { requireAccessKey } = require('../utils/auth');
 
 const router = express.Router();
 
-router.get('/:variables/stream/:type/:id.json', async (req, res) => {
+router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, res) => {
   let config;
 
   // Log the start of a new stream request
