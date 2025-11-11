@@ -15,6 +15,9 @@ function scheduleCleanup(config, delayMs = 1 * 60 * 1000) {
 
 // Upload magnets to AllDebrid
 async function uploadMagnets(magnets, config) {
+  // Perform cleanup before first upload
+  await cleanupOldMagnets(config);
+  
   const url = `https://api.alldebrid.com/v4/magnet/upload?apikey=${config.API_KEY_ALLEDBRID}`;
   
   // Extract hashes from the magnets parameter
@@ -151,39 +154,54 @@ async function unlockFileLink(fileLink, config) {
   }
 }
 
-// Delete the 10 oldest magnets if total > 500
-async function cleanupOldMagnets(config, maxCount = 500, deleteCount = 10) {
+// Delete the 20 oldest magnets if total > 100
+async function cleanupOldMagnets(config, maxCount = 100, deleteCount = 20) {
   try {
-    const magnets = await getAllMagnets();
-    logger.debug(`🔢 Magnets in SQLite: ${magnets.length}`);
-    if (magnets.length > maxCount) {
-      const toDelete = magnets.slice(0, deleteCount);
-      logger.info(`🧹 Deleting ${toDelete.length} oldest magnets (limit: ${deleteCount}) because total > ${maxCount}.`);
-
-      // Prepare formData with multiple ids[]
-      const formData = new FormData();
-      toDelete.forEach(magnet => formData.append('ids[]', magnet.id));
-
-      const url = `https://api.alldebrid.com/v4/magnet/delete?apikey=${config.API_KEY_ALLEDBRID}`;
-      try {
-        const response = await axios.post(url, formData, {
-          headers: {
-            "Authorization": `Bearer ${config.API_KEY_ALLEDBRID}`,
-            ...formData.getHeaders()
-          }
-        });
-        if (response.data.status === "success") {
-          logger.info(`🗑️ Deleted magnets: ${toDelete.map(m => m.name || m.id).join(', ')}`);
-          // Remove from DB
-          for (const magnet of toDelete) {
-            await deleteMagnet(magnet.id);
-          }
-        } else {
-          logger.warn(`❌ Failed to delete magnets: ${JSON.stringify(response.data, null, 2)}`);
+    // Get magnets from AllDebrid API (not from SQLite)
+    const url = `https://api.alldebrid.com/v4/magnet/status?apikey=${config.API_KEY_ALLEDBRID}`;
+    
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "Authorization": `Bearer ${config.API_KEY_ALLEDBRID}`
         }
-      } catch (err) {
-        logger.error(`❌ Error deleting magnets: ${err.message}`);
+      });
+      
+      if (response.data.status === "success" && response.data.data.magnets) {
+        const magnets = response.data.data.magnets;
+        logger.debug(`🔢 Active magnets on AllDebrid: ${magnets.length}`);
+        
+        if (magnets.length > maxCount) {
+          // Sort by upload date (oldest first) and take the oldest ones
+          const sortedMagnets = magnets.sort((a, b) => a.uploadDate - b.uploadDate);
+          const toDelete = sortedMagnets.slice(0, deleteCount);
+          logger.info(`🧹 Deleting ${toDelete.length} oldest magnets (limit: ${deleteCount}) because total > ${maxCount}.`);
+
+          // Prepare formData with multiple ids[]
+          const formData = new FormData();
+          toDelete.forEach(magnet => formData.append('ids[]', magnet.id));
+
+          const deleteUrl = `https://api.alldebrid.com/v4/magnet/delete?apikey=${config.API_KEY_ALLEDBRID}`;
+          const deleteResponse = await axios.post(deleteUrl, formData, {
+            headers: {
+              "Authorization": `Bearer ${config.API_KEY_ALLEDBRID}`,
+              ...formData.getHeaders()
+            }
+          });
+          
+          if (deleteResponse.data.status === "success") {
+            logger.info(`🗑️ Deleted magnets from AllDebrid: ${toDelete.map(m => m.filename || m.id).join(', ')}`);
+            // Remove from DB
+            for (const magnet of toDelete) {
+              await deleteMagnet(magnet.id);
+            }
+          } else {
+            logger.warn(`❌ Failed to delete magnets: ${JSON.stringify(deleteResponse.data, null, 2)}`);
+          }
+        }
       }
+    } catch (err) {
+      logger.error(`❌ Error during magnet cleanup: ${err.message}`);
     }
   } catch (err) {
     logger.error("❌ Error during magnet cleanup:", err.message);
