@@ -24,9 +24,6 @@ services:
       
     ports:
       - 5000:5000
-    volumes:
-      # Persistent database storage
-      - /docker_data/smart-blue-cat/data:/data
     restart: unless-stopped
     
     # Health check

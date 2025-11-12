@@ -2,6 +2,9 @@
 const path = require('path');
 const logger = require('./logger');
 
+// Prevent multiple initialization logs
+let isInitialized = false;
+
 /**
  * Detect the current deployment environment
  * @returns {string} Environment type: 'local' or 'docker'
@@ -33,7 +36,6 @@ function getEnvironmentConfig() {
     local: {
       environment: 'local',
       sslEnabled: true,   // Local server needs SSL for Stremio
-      dbPath: '/data',    // Persistent storage
       port: process.env.PORT || 5000,
       host: '0.0.0.0',
       sslCertPath: '/etc/ssl/certs/server.pem',
@@ -44,7 +46,6 @@ function getEnvironmentConfig() {
     docker: {
       environment: 'docker',
       sslEnabled: true,   // Default to SSL for Docker
-      dbPath: '/data',    // Use /data volume mount
       port: process.env.PORT || 5000,
       host: '0.0.0.0',
       sslCertPath: '/etc/ssl/certs/server.pem',
@@ -55,20 +56,15 @@ function getEnvironmentConfig() {
   
   const config = configs[env] || configs.local;
   
-  logger.info(`🌐 Environment detected: ${config.environment}`);
-  logger.info(`📊 Config - SSL: ${config.sslEnabled ? '✅' : '❌'}, DB: ${config.dbPath}, Port: ${config.port}`);
-  logger.debug(`🔗 Base URL: ${config.baseUrl}`);
+  // Only log on first initialization to prevent spam
+  if (!isInitialized) {
+    logger.info(`🌐 Environment detected: ${config.environment}`);
+    logger.info(`📊 Config - SSL: ${config.sslEnabled ? '✅' : '❌'}, Port: ${config.port}`);
+    logger.debug(`🔗 Base URL: ${config.baseUrl}`);
+    isInitialized = true;
+  }
   
   return config;
-}
-
-/**
- * Get the database path based on environment
- * @returns {string} Database file path
- */
-function getDatabasePath() {
-  const envConfig = getEnvironmentConfig();
-  return path.join(envConfig.dbPath, 'streams.db');
 }
 
 /**
@@ -100,7 +96,6 @@ function getSSLConfig() {
 module.exports = {
   detectEnvironment,
   getEnvironmentConfig,
-  getDatabasePath,
   isSSLEnabled,
   getSSLConfig
 };

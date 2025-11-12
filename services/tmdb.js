@@ -1,22 +1,24 @@
 const axios = require('axios');
+const httpClient = require('../utils/http');
 const logger = require('../utils/logger');
-const { getCachedTmdb, storeTmdb } = require('../utils/db');
+const cache = require('../utils/cache');
 
 // Retrieve TMDB data based on IMDB ID
 async function getTmdbData(imdbId, config) {
-  try {
-    const cachedData = await getCachedTmdb(imdbId);
-    if (cachedData) {
-      logger.info(`✅ TMDB cache hit for IMDB ID: ${imdbId}`);
-      return {
-        type: cachedData.type,
-        title: cachedData.title,
-        frenchTitle: cachedData.french_title,
-        year: cachedData.year
-      };
-    }
+  const cacheKey = cache.generateKey('tmdb', imdbId);
+  
+  // Check memory cache first (fastest)
+  const cachedResult = cache.getTmdb(cacheKey);
+  if (cachedResult) {
+    logger.info(`⚡ TMDB memory cache hit for IMDB ID: ${imdbId}`);
+    return cachedResult;
+  }
 
-    const response = await axios.get(`https://api.themoviedb.org/3/find/${imdbId}`, {
+  try {
+    const response = await httpClient.get(`https://api.themoviedb.org/3/find/${imdbId}`, {
+      source: 'TMDB',
+      timeout: 8000,
+      maxRetries: 2,
       params: {
         api_key: config.TMDB_API_KEY,
         external_source: "imdb_id"
@@ -31,10 +33,12 @@ async function getTmdbData(imdbId, config) {
 
       logger.info(`✅ Movie found: ${title} (${year}) (FR Title: ${frenchTitle})`);
 
-      // Stocker les données dans le cache
-      await storeTmdb(imdbId, "movie", title, frenchTitle, year);
+      const result = { type: "movie", title, frenchTitle, year };
+      
+      // Store in memory cache
+      cache.setTmdb(cacheKey, result);
 
-      return { type: "movie", title, frenchTitle, year };
+      return result;
     }
 
     // Check if the result is a TV series
@@ -45,9 +49,12 @@ async function getTmdbData(imdbId, config) {
 
       logger.info(`✅ Series found: ${title} (${year}) (FR Title: ${frenchTitle})`);
 
-      await storeTmdb(imdbId, "series", title, frenchTitle, year);
+      const result = { type: "series", title, frenchTitle, year };
+      
+      // Store in memory cache
+      cache.setTmdb(cacheKey, result);
 
-      return { type: "series", title, frenchTitle, year };
+      return result;
     }
   } catch (error) {
     logger.error(`❌ TMDB Error for IMDB ID: ${imdbId}`, error.response?.data || error.message);

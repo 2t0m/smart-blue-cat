@@ -6,10 +6,12 @@ const { uploadMagnets, getFilesFromMagnetId, unlockFileLink } = require('../serv
 const { parseFileName, formatSize, getConfig } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const { requireAccessKey } = require('../utils/auth');
+const cache = require('../utils/cache');
 
 const router = express.Router();
 
 router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, res) => {
+  const startTime = Date.now(); // Start timer
   let config;
 
   // Log the start of a new stream request
@@ -43,56 +45,85 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
   const tmdbData = await getTmdbData(imdbId, config);
   if (!tmdbData) {
     logger.warn(`❌ Unable to retrieve TMDB info for ${imdbId}`);
+    const totalTime = Date.now() - startTime;
+    logger.info(`❌ Request failed in ${totalTime}ms (no TMDB data)`);
     return res.json({ streams: [] });
   }
   
   logger.verbose(`📽️ TMDB Data - Title: "${tmdbData.title}", French: "${tmdbData.frenchTitle}", Type: ${tmdbData.type}`);
 
   // Call searchYgg and searchSharewood to retrieve processed torrents
-  logger.search(`Starting parallel search on YGG and Sharewood for "${tmdbData.title}"${tmdbData.year ? ` (${tmdbData.year})` : ''}`);
-  const [yggResults, sharewoodResults] = await Promise.all([
-    searchYgg(
-      tmdbData.title,
-      tmdbData.type,
-      season,
-      episode,
-      config,
-      tmdbData.frenchTitle,
-      imdbId,
-      tmdbData.year
-    ),
-    searchSharewood(
-      tmdbData.title,
-      tmdbData.type,
-      season,
-      episode,
-      config,
-      tmdbData.year
-    )
-  ]);
+  const searchKey = cache.generateKey('search', [tmdbData.title, tmdbData.type, season, episode, tmdbData.year]);
+  let combinedResults = cache.getSearch(searchKey);
+  
+  if (!combinedResults) {
+    const searchStartTime = Date.now();
+    logger.search(`Starting parallel search on YGG and Sharewood for "${tmdbData.title}"${tmdbData.year ? ` (${tmdbData.year})` : ''}`);
+    
+    // Optimized parallel execution with Promise.allSettled for better error handling
+    const searchPromises = [
+      searchYgg(
+        tmdbData.title,
+        tmdbData.type,
+        season,
+        episode,
+        config,
+        tmdbData.frenchTitle,
+        tmdbData.year,
+        imdbId
+      ).catch(err => {
+        logger.error('❌ YGG search failed:', err.message);
+        return { completeSeriesTorrents: [], completeSeasonTorrents: [], episodeTorrents: [], movieTorrents: [] };
+      }),
+      searchSharewood(
+        tmdbData.title,
+        tmdbData.type,
+        season,
+        episode,
+        config,
+        tmdbData.year
+      ).catch(err => {
+        logger.error('❌ Sharewood search failed:', err.message);
+        return { completeSeriesTorrents: [], completeSeasonTorrents: [], episodeTorrents: [], movieTorrents: [] };
+      })
+    ];
 
-  logger.verbose(`🎯 YGG Results - Complete Series: ${yggResults.completeSeriesTorrents.length}, Seasons: ${yggResults.completeSeasonTorrents.length}, Episodes: ${yggResults.episodeTorrents.length}, Movies: ${yggResults.movieTorrents.length}`);
-  logger.verbose(`🎯 Sharewood Results - Complete Series: ${sharewoodResults.completeSeriesTorrents.length}, Seasons: ${sharewoodResults.completeSeasonTorrents.length}, Episodes: ${sharewoodResults.episodeTorrents.length}, Movies: ${sharewoodResults.movieTorrents.length}`);
+    const [yggResults, sharewoodResults] = await Promise.allSettled(searchPromises);
+    
+    const yggData = yggResults.status === 'fulfilled' ? yggResults.value : { completeSeriesTorrents: [], completeSeasonTorrents: [], episodeTorrents: [], movieTorrents: [] };
+    const sharewoodData = sharewoodResults.status === 'fulfilled' ? sharewoodResults.value : { completeSeriesTorrents: [], completeSeasonTorrents: [], episodeTorrents: [], movieTorrents: [] };
 
-  // Combine results from both sources
-  const combinedResults = {
-    completeSeriesTorrents: [
-      ...yggResults.completeSeriesTorrents,
-      ...sharewoodResults.completeSeriesTorrents
-    ],
-    completeSeasonTorrents: [
-      ...yggResults.completeSeasonTorrents,
-      ...sharewoodResults.completeSeasonTorrents
-    ],
-    episodeTorrents: [
-      ...yggResults.episodeTorrents,
-      ...sharewoodResults.episodeTorrents
-    ],
-    movieTorrents: [
-      ...yggResults.movieTorrents,
-      ...sharewoodResults.movieTorrents
-    ]
-  };
+    logger.verbose(`🎯 YGG Results - Complete Series: ${yggData.completeSeriesTorrents.length}, Seasons: ${yggData.completeSeasonTorrents.length}, Episodes: ${yggData.episodeTorrents.length}, Movies: ${yggData.movieTorrents.length}`);
+    logger.verbose(`🎯 Sharewood Results - Complete Series: ${sharewoodData.completeSeriesTorrents.length}, Seasons: ${sharewoodData.completeSeasonTorrents.length}, Episodes: ${sharewoodData.episodeTorrents.length}, Movies: ${sharewoodData.movieTorrents.length}`);
+
+    // Combine results from both sources
+    combinedResults = {
+      completeSeriesTorrents: [
+        ...yggData.completeSeriesTorrents,
+        ...sharewoodData.completeSeriesTorrents
+      ],
+      completeSeasonTorrents: [
+        ...yggData.completeSeasonTorrents,
+        ...sharewoodData.completeSeasonTorrents
+      ],
+      episodeTorrents: [
+        ...yggData.episodeTorrents,
+        ...sharewoodData.episodeTorrents
+      ],
+      movieTorrents: [
+        ...yggData.movieTorrents,
+        ...sharewoodData.movieTorrents
+      ]
+    };
+    
+    const searchTime = Date.now() - searchStartTime;
+    logger.info(`🔍 Search completed in ${searchTime}ms`);
+    
+    // Cache the combined search results
+    cache.setSearch(searchKey, combinedResults);
+  } else {
+    logger.info(`⚡ Search cache hit for "${tmdbData.title}"`);
+  }
 
   logger.debug(`🔗 Combined Results: ${JSON.stringify(combinedResults, null, 2)}`);
 
@@ -131,7 +162,7 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
 
     logger.verbose(`🎯 Final filtered episodes: ${filteredEpisodeTorrents.length}/${episodeTorrents.length} torrents match S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`);
     
-    // ORDRE OPTIMAL: Episode spécifique → Saison complète → Série complète
+    // OPTIMAL ORDER: Specific episode → Complete season → Complete series
     allTorrents = [
       ...filteredEpisodeTorrents,     // PRIORITÉ 1: Épisodes exacts
       ...completeSeasonTorrents,      // PRIORITÉ 2: Saisons complètes  
@@ -145,9 +176,89 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
     allTorrents = [...movieTorrents];
   }
 
-  // Limit the number of torrents to process
-  const maxTorrentsToProcess = config.FILES_TO_SHOW * 2;
-  const limitedTorrents = allTorrents.slice(0, maxTorrentsToProcess);
+  // Limit the number of torrents to process - Optimized for speed like StreamFusion
+  const maxTorrentsToProcess = Math.min(config.FILES_TO_SHOW, 2); // Further reduced to 2 for maximum speed
+  
+  // FILTRAGE INTELLIGENT: Optimiser la qualité avant envoi à AllDebrid (MODE PERMISSIF)
+  const intelligentFilter = (torrents) => {
+    const parseSizeMB = (size) => {
+      if (!size && size !== 0) return 0;
+      // If already a number, assume bytes if large, otherwise assume MB
+      if (typeof size === 'number') {
+        if (size > 1000) return Math.round(size / (1024 * 1024));
+        return Math.round(size);
+      }
+
+      const s = String(size).trim();
+      // Match patterns like "1.2 GB", "700 MB", or raw bytes like "1048576"
+      const m = s.match(/^([\d,.]+)\s*(kb|mb|gb|tb)?/i);
+      if (m) {
+        let val = parseFloat(m[1].replace(',', '.'));
+        const unit = (m[2] || '').toLowerCase();
+        if (unit === 'kb') return Math.round(val / 1024);
+        if (unit === 'mb') return Math.round(val);
+        if (unit === 'gb') return Math.round(val * 1024);
+        if (unit === 'tb') return Math.round(val * 1024 * 1024);
+        // no unit: if value looks big, treat as bytes -> convert to MB
+        if (!unit) {
+          if (val > 1000) return Math.round(val / (1024 * 1024));
+          return Math.round(val);
+        }
+      }
+
+      // Fallback: extract digits and convert
+      const digits = s.replace(/[^\d]/g, '');
+      if (!digits) return 0;
+      const v = parseInt(digits, 10);
+      if (v > 1000) return Math.round(v / (1024 * 1024));
+      return v;
+    };
+
+    logger.debug(`🔍 Starting intelligent filter on ${torrents.length} torrents...`);
+    
+    return torrents
+      // 1. Filtrer par taille de manière permissive (garder plus de torrents)
+      .filter(torrent => {
+        const sizeMB = parseSizeMB(torrent.size);
+        const sizeOK = sizeMB === 0 || // Garder si pas de taille (on ne peut pas juger)
+          (type === "series" ? sizeMB >= 10 : sizeMB >= 100); // Critères très permissifs
+        
+        logger.debug(`📏 Size filter "${torrent.title}": ${torrent.size} → ${sizeMB}MB → ${sizeOK ? '✅ KEEP' : '❌ SKIP'}`);
+        return sizeOK;
+      })
+      // 2. Trier par qualité (priorité aux 1080p, 720p, puis le reste) - PAS DE FILTRAGE SUPPLÉMENTAIRE
+      .sort((a, b) => {
+        const getQualityScore = (title) => {
+          const lower = title.toLowerCase();
+          if (lower.includes('1080p') || lower.includes('1080')) return 100;
+          if (lower.includes('720p') || lower.includes('720')) return 90;
+          if (lower.includes('2160p') || lower.includes('4k')) return 95;
+          if (lower.includes('480p') || lower.includes('480')) return 70;
+          return 60;
+        };
+        const scoreA = getQualityScore(a.title);
+        const scoreB = getQualityScore(b.title);
+        logger.debug(`🎬 Quality sort "${a.title}" (${scoreA}) vs "${b.title}" (${scoreB})`);
+        return scoreB - scoreA;
+      });
+      // Seeds sorting removed - not relevant for cached files
+  };
+  
+  logger.info(`🧠 Applying intelligent filtering to ${allTorrents.length} torrents...`);
+  const filteredTorrents = intelligentFilter(allTorrents);
+  logger.info(`🎯 Intelligent filter result: ${filteredTorrents.length}/${allTorrents.length} torrents kept after quality/size filtering`);
+  
+  // Comparaison avant/après pour debug
+  if (filteredTorrents.length < allTorrents.length) {
+    logger.debug(`📊 Filtered out ${allTorrents.length - filteredTorrents.length} torrents:`);
+    const removed = allTorrents.filter(t => !filteredTorrents.includes(t));
+    removed.slice(0, 3).forEach(t => {
+      logger.debug(`❌ Removed: "${t.title}" (size: ${t.size})`);
+    });
+  }
+  
+  const limitedTorrents = filteredTorrents.slice(0, maxTorrentsToProcess);
+  logger.info(`📊 Processing ${limitedTorrents.length} high-quality torrents (limit: ${maxTorrentsToProcess})`);
 
   // Retrieve hashes for the torrents and detect duplicates
   const magnets = [];
@@ -187,8 +298,11 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
   }
 
   // Upload magnets to AllDebrid
+  const allDebridStartTime = Date.now();
   logger.info(`🔄 Uploading ${magnets.length} magnets to AllDebrid`);
   const uploadedStatuses = await uploadMagnets(magnets, config);
+  const allDebridTime = Date.now() - allDebridStartTime;
+  logger.info(`⚡ AllDebrid processing completed in ${allDebridTime}ms`);
 
   // Filter ready torrents
   const readyTorrents = uploadedStatuses.filter(file => file.ready === '✅ Ready');
@@ -213,18 +327,87 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
       const filteredFiles = videoFiles.filter(file => {
         const fileName = file.name.toLowerCase();
 
+        // First, check episode/movie match
+        let matchesContent = false;
         if (type === "series") {
           const seasonEpisodePattern = `s${season.padStart(2, '0')}e${episode.padStart(2, '0')}`;
-          const matchesEpisode = fileName.includes(seasonEpisodePattern);
-          logger.debug(`🔍 Checking episode pattern "${seasonEpisodePattern}" against file "${fileName}": ${matchesEpisode}`);
-          return matchesEpisode;
+          matchesContent = fileName.includes(seasonEpisodePattern);
+          logger.debug(`🔍 Checking episode pattern "${seasonEpisodePattern}" against file "${fileName}": ${matchesContent}`);
         } else if (type === "movie") {
-          logger.info(`✅ File included (movie): ${file.name}`);
-          return true;
+          matchesContent = true;
+          logger.debug(`✅ File matches movie content: ${file.name}`);
         }
 
-        logger.info(`❌ File excluded: ${file.name}`);
-        return false;
+        if (!matchesContent) {
+          logger.debug(`❌ File excluded (content mismatch): ${file.name}`);
+          return false;
+        }
+
+        // Then, filter by resolution BEFORE unlocking (to avoid unnecessary AllDebrid calls)
+        if (config.RES_TO_SHOW && config.RES_TO_SHOW.length > 0) {
+          const { resolution } = parseFileName(file.name);
+          const { resolution: torrentResolution } = parseFileName(torrent.name);
+          
+          // Use torrent resolution if file doesn't have one (common for season packs)
+          const actualResolution = resolution !== '?' ? resolution : torrentResolution;
+          
+          const allowedResolutions = config.RES_TO_SHOW.map(r => r.toLowerCase());
+          let fileResolution = actualResolution.toLowerCase();
+          
+          // Normalize 4K to 2160p for comparison
+          if (fileResolution === '4k') {
+            fileResolution = '2160p';
+          }
+          
+          if (!allowedResolutions.includes(fileResolution)) {
+            logger.debug(`⚠️ Pre-filtering out ${actualResolution} file (not in allowed resolutions: ${config.RES_TO_SHOW.join(', ')}): ${file.name}`);
+            return false;
+          }
+        }
+
+        // Also filter by codec if specified
+        if (config.CODECS_TO_SHOW && config.CODECS_TO_SHOW.length > 0) {
+          const { codec } = parseFileName(file.name);
+          const { codec: torrentCodec } = parseFileName(torrent.name);
+          
+          // Use torrent codec if file doesn't have one (common for season packs)
+          const actualCodec = codec !== '?' ? codec : torrentCodec;
+          
+          const allowedCodecs = config.CODECS_TO_SHOW.map(c => c.toLowerCase());
+          let fileCodec = actualCodec.toLowerCase();
+          
+          // Normalize codec names: x265 and hevc are both h265
+          if (fileCodec.includes('x265') || fileCodec.includes('hevc')) {
+            fileCodec = 'h265';
+          } else if (fileCodec.includes('x264') || fileCodec.includes('avc')) {
+            fileCodec = 'h264';
+          }
+          
+          if (!allowedCodecs.includes(fileCodec)) {
+            logger.debug(`⚠️ Pre-filtering out ${actualCodec} file (not in allowed codecs: ${config.CODECS_TO_SHOW.join(', ')}): ${file.name}`);
+            return false;
+          }
+        }
+
+        // Also filter by language if specified
+        if (config.LANG_TO_SHOW && config.LANG_TO_SHOW.length > 0) {
+          const { language } = parseFileName(file.name);
+          const { language: torrentLanguage } = parseFileName(torrent.name);
+          
+          // Use torrent language if file doesn't have one (common for season packs)
+          const actualLanguage = language !== '?' ? language : torrentLanguage;
+          
+          const allowedLanguages = config.LANG_TO_SHOW.map(l => l.toLowerCase());
+          const fileLanguage = actualLanguage.toLowerCase();
+          
+          if (!allowedLanguages.includes(fileLanguage)) {
+            logger.debug(`⚠️ Pre-filtering out ${actualLanguage} file (not in allowed languages: ${config.LANG_TO_SHOW.join(', ')}): ${file.name}`);
+            return false;
+          }
+        }
+
+        logger.debug(`✅ File passed all filters: ${file.name}`);
+        return true;
       });
 
       // Unlock filtered files
@@ -236,7 +419,17 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
 
         const unlockedLink = await unlockFileLink(file.link, config);
         if (unlockedLink) {
-          const { resolution, codec, source, language, languageEmoji } = parseFileName(file.name);
+          const fileMetadata = parseFileName(file.name);
+          const torrentMetadata = parseFileName(torrent.name);
+          
+          // Use torrent metadata if file metadata is unknown
+          const resolution = fileMetadata.resolution !== '?' ? fileMetadata.resolution : torrentMetadata.resolution;
+          const codec = fileMetadata.codec !== '?' ? fileMetadata.codec : torrentMetadata.codec;
+          const language = fileMetadata.language !== '?' ? fileMetadata.language : torrentMetadata.language;
+          const languageEmoji = fileMetadata.languageEmoji !== '?' ? fileMetadata.languageEmoji : torrentMetadata.languageEmoji;
+          const source = fileMetadata.source;
+          
+          // Filtering already done before unlocking - no need to filter again
           
           // Normalize and beautify the display
           const qualityBadge = resolution === '2160p' ? '🏆' : resolution === '1080p' ? '⭐' : resolution === '720p' ? '✨' : '📺';
@@ -269,7 +462,8 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
 
   await unlockAndAddStreams(readyTorrents);
 
-  logger.info(`🎉 ${streams.length} stream(s) obtained`);
+  const totalTime = Date.now() - startTime;
+  logger.info(`🎉 ${streams.length} stream(s) obtained in ${totalTime}ms`);
   res.json({ streams });
 });
 

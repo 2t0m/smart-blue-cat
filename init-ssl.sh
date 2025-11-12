@@ -49,23 +49,9 @@ setup_ssl() {
     fi
 }
 
-# Setup database directory based on environment
-setup_database() {
-    DB_PATH="/data"
-    echo "📂 Using persistent database path: $DB_PATH"
-    
-    # Create directory if it doesn't exist
-    mkdir -p "$DB_PATH"
-    chmod 755 "$DB_PATH"
-    
-    # Export for use by the application
-    export DB_PATH
-}
-
 # Main setup
 echo "🚀 Starting Smart Blue Cat initialization..."
 
-setup_database
 setup_ssl
 
 # Start the application with the provided arguments

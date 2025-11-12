@@ -3,7 +3,7 @@ const winston = require('winston');
 const logLevel = process.env.LOG_LEVEL?.toLowerCase() || 'info';
 console.log(`[LOGGER INIT] LOG_LEVEL env = "${process.env.LOG_LEVEL}", using logLevel = "${logLevel}"`);
 
-// Définir des niveaux personnalisés pour plus de granularité
+// Define custom levels for more granularity
 const customLevels = {
   levels: {
     error: 0,
@@ -40,7 +40,7 @@ const logger = winston.createLogger({
   ]
 });
 
-// Ajouter des méthodes de logging spécialisées
+// Add specialized logging methods
 logger.request = (message) => logger.info(`📥 ${message}`);
 logger.search = (message) => logger.verbose(`🔍 ${message}`);
 logger.filter = (message) => logger.debug(`🎯 ${message}`);

@@ -47,7 +47,6 @@ if (isSSLEnabled()) {
 
     https.createServer(sslOptions, app).listen(PORT, HOST, () => {
       logger.info(`✅ HTTPS server running on ${HOST}:${PORT} (${envConfig.environment})`);
-      logger.info(`🔗 Base URL: ${envConfig.baseUrl}`);
     });
   } catch (error) {
     logger.error(`❌ Failed to start HTTPS server: ${error.message}`);
@@ -62,6 +61,5 @@ if (isSSLEnabled()) {
   // HTTP server for non-SSL environments
   http.createServer(app).listen(PORT, HOST, () => {
     logger.info(`✅ HTTP server running on ${HOST}:${PORT} (${envConfig.environment})`);
-    logger.info(`🔗 Base URL: ${envConfig.baseUrl}`);
   });
 }

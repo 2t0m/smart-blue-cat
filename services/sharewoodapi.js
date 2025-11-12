@@ -1,5 +1,17 @@
 const axios = require('axios');
+const httpClient = require('../utils/http');
 const logger = require('../utils/logger');
+
+// Normalize title for consistent filtering
+function normalizeTitle(title) {
+  return title.toLowerCase()
+    .replace(/\b4k\b/g, '2160p')     // 4K -> 2160p
+    .replace(/\bx264\b/g, 'h264')    // x264 -> h264  
+    .replace(/\bx265\b/g, 'h265')    // x265 -> h265
+    .replace(/\bhevc\b/g, 'h265')    // HEVC -> h265
+    .replace(/\bvof\b/g, 'vff')      // VOF -> VFF
+    .replace(/\bvf2\b/g, 'vff');     // VF2 -> VFF
+}
 
 // Map subcategories for Sharewood
 const SUBCATEGORY_MAP = {
@@ -21,19 +33,23 @@ async function searchSharewood(title, type, season = null, episode = null, confi
   }
 
   const subcategoryParams = subcategories.map(id => `subcategory_id=${id}`).join(',');
-  const seasonFormatted = season ? ` S${season.padStart(2, '0')}` : '';
-  const yearFormatted = (type === 'movie' && year) ? ` ${year}` : '';
-  const requestUrl = `https://www.sharewood.tv/api/${config.SHAREWOOD_PASSKEY}/search?name=${encodeURIComponent(title + yearFormatted + " " +seasonFormatted)}&category=1&subcategory_id=${subcategoryParams}`;
+  
+  const requestUrl = `https://www.sharewood.tv/api/${config.SHAREWOOD_PASSKEY}/search?name=${encodeURIComponent(title)}&category=1&subcategory_id=${subcategoryParams}`;
 
   logger.search(`Searching for torrents on Sharewood`);
   logger.verbose(`🎯 Sharewood search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
   if (type === 'movie' && year) {
     logger.info(`🎬 Adding year to Sharewood movie search: "${title}" → "${title} ${year}"`);
   }
-  logger.debug(`🔍 Performing Sharewood search with URL: ${requestUrl}`);
+  logger.info(`🔍 Performing Sharewood search with URL: ${requestUrl}`);
 
   try {
-    const response = await axios.get(requestUrl);
+    const response = await httpClient.get(requestUrl, {
+      source: 'SW',
+      timeout: 10000,
+      maxRetries: 3,
+      useCircuitBreaker: true
+    });
     const torrents = response.data || [];
 
     logger.info(`✅ Found ${torrents.length} torrents on Sharewood for "${title}".`);
@@ -209,8 +225,8 @@ function processTorrents(torrents, type, season, episode, config) {
 
 // Helper function to check if torrent meets quality criteria
 function meetsCriteria(torrent, config) {
-  const name = torrent.name.toLowerCase();
-  const language = (torrent.language || '').toLowerCase();
+  const name = normalizeTitle(torrent.name);
+  const language = normalizeTitle(torrent.language || '').toLowerCase();
   
   const hasValidResolution = config.RES_TO_SHOW.some(res => name.includes(res.toLowerCase()));
   // Check language in both torrent.language AND torrent.name

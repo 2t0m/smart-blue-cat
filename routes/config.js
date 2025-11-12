@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('../utils/helpers');
 const logger = require('../utils/logger');
+const { allDebridRateLimiter, allDebridCircuitBreaker } = require('../utils/rateLimit');
+const CacheManager = require('../utils/cache');
 
 const router = express.Router();
 
@@ -82,6 +84,35 @@ router.get('/:variables/configure', (req, res) => {
 
     res.send(page);
   });
+});
+
+// Status endpoint for monitoring
+router.get('/status', async (req, res) => {
+  try {
+    const rateLimiterStatus = allDebridRateLimiter.getStatus();
+    const circuitBreakerStatus = allDebridCircuitBreaker.getStatus();
+    const cacheStats = CacheManager.getStats();
+    
+    const status = {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      rateLimiter: rateLimiterStatus,
+      circuitBreaker: circuitBreakerStatus,
+      cache: cacheStats,
+      performance: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        cpuUsage: process.cpuUsage(),
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    logger.debug('📊 Status requested:', JSON.stringify(status, null, 2));
+    res.json(status);
+  } catch (error) {
+    logger.error('❌ Error getting status:', error.message);
+    res.status(500).json({ error: 'Failed to get status' });
+  }
 });
 
 module.exports = router;
