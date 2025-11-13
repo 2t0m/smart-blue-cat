@@ -5,6 +5,7 @@ const fs = require('fs');
 const manifestRoutes = require('./routes/manifest');
 const streamRoutes = require('./routes/stream');
 const configRoutes = require('./routes/config');
+const unlockRoutes = require('./routes/unlock');
 const logger = require('./utils/logger');
 const { getEnvironmentConfig, isSSLEnabled, getSSLConfig } = require('./utils/environment');
 
@@ -25,6 +26,7 @@ app.use((req, res, next) => {
 app.use('/', configRoutes);
 app.use('/', manifestRoutes);
 app.use('/', streamRoutes);
+app.use('/', unlockRoutes);
 
 // Health check endpoint for deployment platforms
 app.get('/health', (req, res) => {

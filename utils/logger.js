@@ -29,10 +29,10 @@ const logger = winston.createLogger({
   level: logLevel,
   levels: customLevels.levels,
   format: winston.format.combine(
-    winston.format.timestamp({ format: 'HH:mm:ss.SSS' }),
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
     winston.format.colorize(),
     winston.format.printf(({ timestamp, level, message }) => {
-      return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+      return `[${timestamp}]: ${message}`;
     })
   ),
   transports: [

@@ -3,6 +3,53 @@ const httpClient = require('../utils/http');
 const logger = require('../utils/logger');
 const cache = require('../utils/cache');
 
+// Get TMDB ID from IMDB ID using TMDB API
+async function getTmdbIdFromImdb(imdbId, type, config) {
+  if (!imdbId || !config.TMDB_API_KEY) {
+    return null;
+  }
+
+  const cacheKey = `tmdb-id:${imdbId}`;
+  const cachedTmdbId = cache.getHash(cacheKey);
+  if (cachedTmdbId) {
+    logger.debug(`🎯 TMDB ID cache HIT for ${imdbId}: ${cachedTmdbId}`);
+    return cachedTmdbId;
+  }
+
+  logger.debug(`🔍 Fetching TMDB ID for IMDB ${imdbId}...`);
+  
+  try {
+    const url = `https://api.themoviedb.org/3/find/${imdbId}?api_key=${config.TMDB_API_KEY}&external_source=imdb_id`;
+    const response = await httpClient.get(url, {
+      source: 'TMDB',
+      timeout: 5000,
+      maxRetries: 2
+    });
+
+    if (response.data) {
+      let tmdbId = null;
+      
+      if (type === 'movie' && response.data.movie_results?.length > 0) {
+        tmdbId = response.data.movie_results[0].id;
+      } else if (type === 'series' && response.data.tv_results?.length > 0) {
+        tmdbId = response.data.tv_results[0].id;
+      }
+      
+      if (tmdbId) {
+        logger.info(`✅ Found TMDB ID ${tmdbId} for IMDB ${imdbId}`);
+        cache.storeHash(cacheKey, tmdbId.toString());
+        return tmdbId;
+      } else {
+        logger.warn(`⚠️ No TMDB ID found for IMDB ${imdbId} (type: ${type})`);
+      }
+    }
+  } catch (error) {
+    logger.error(`❌ Error fetching TMDB ID for ${imdbId}: ${error.message}`);
+  }
+  
+  return null;
+}
+
 // Retrieve the hash of a torrent on YggTorrent
 async function getTorrentHashFromYgg(torrentId) {
   // Check cache first
@@ -200,9 +247,67 @@ function normalizeTitle(title) {
     .replace(/\bvf2\b/g, 'vff');     // VF2 -> VFF
 }
 
+// Perform TMDB ID search on YggAPI for more precise results
+async function performTmdbSearch(tmdbId, type, config) {
+  const categoryMap = {
+    movie: 'movie',
+    series: 'tv'
+  };
+  
+  const categoryType = categoryMap[type] || 'tv';
+  const requestUrl = `https://yggapi.eu/torrents?page=1&order_by=downloads&per_page=25&type=${categoryType}&tmdb_id=${tmdbId}`;
+
+  logger.info(`🎯 Performing TMDB ID search: ${requestUrl}`);
+
+  try {
+    const response = await httpClient.get(requestUrl, {
+      source: 'YGG-TMDB',
+      timeout: 10000,
+      maxRetries: 2
+    });
+    
+    const torrents = response.data || [];
+    logger.info(`✅ Found ${torrents.length} torrents using TMDB ID ${tmdbId}`);
+    
+    if (torrents.length > 0) {
+      logger.debug(`🔍 First 3 TMDB search results:`);
+      torrents.slice(0, 3).forEach((torrent, index) => {
+        logger.debug(`   ${index + 1}. "${torrent.title}"`);
+      });
+    }
+
+    return torrents;
+  } catch (error) {
+    logger.error("❌ TMDB Search Error:", error.message);
+    return [];
+  }
+}
+
 async function searchYgg(title, type, season, episode, config, frenchTitle, year, imdbId) {
   logger.search(`Searching for torrents on YggTorrent`);
-  logger.verbose(`🎯 Search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+  logger.verbose(`🎯 Search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}, IMDB: ${imdbId || 'N/A'}`);
+
+  // NEW: Try to get TMDB ID from IMDB ID for more precise search
+  let tmdbId = null;
+  if (imdbId) {
+    tmdbId = await getTmdbIdFromImdb(imdbId, type, config);
+  }
+
+  // If we have TMDB ID, try TMDB search first
+  if (tmdbId) {
+    logger.info(`🎯 Using TMDB ID search for more precise results: ${tmdbId}`);
+    const tmdbTorrents = await performTmdbSearch(tmdbId, type, config);
+    
+    if (tmdbTorrents.length > 0) {
+      logger.info(`✅ Found ${tmdbTorrents.length} torrents using TMDB search, processing...`);
+      return processTorrents(tmdbTorrents, type, season, episode, config);
+    } else {
+      logger.warn(`⚠️ No results with TMDB search, falling back to text search`);
+    }
+  }
+
+  // FALLBACK: Traditional text-based search
+  logger.info(`🔍 Using text-based search as ${tmdbId ? 'fallback' : 'primary method'}`);
 
   // Use the title for the search, add year for movies to improve accuracy
   let searchTitle = (type === 'movie' && year) ? `${title} ${year}` : title;
@@ -261,9 +366,9 @@ async function performSearch(searchTitle, type, config, season = null, episode =
     : [2179, 2181, 2182, 2184];
 
   const categoryParams = categoryIds.map(id => `category_id=${id}`).join('&');
-  const requestUrl = `https://yggapi.eu/torrents?q=${encodeURIComponent(searchTitle)}&page=1&per_page=100&order_by=uploaded_at&${categoryParams}`;
+  const requestUrl = `https://yggapi.eu/torrents?q=${encodeURIComponent(searchTitle)}&page=1&per_page=25&order_by=downloads&${categoryParams}`;
 
-  logger.info(`🔍 Performing YGG search with URL: ${requestUrl}`);
+  logger.info(`🔍 Performing YGG text search: ${requestUrl}`);
 
   try {
     const response = await httpClient.get(requestUrl, {
