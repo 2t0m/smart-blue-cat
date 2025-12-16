@@ -120,8 +120,17 @@ router.get('/:variables/stream/:type/:id.json', requireAccessKey, async (req, re
     const searchTime = Date.now() - searchStartTime;
     logger.info(`🔍 Search completed in ${searchTime}ms`);
     
-    // Cache the combined search results
-    cache.setSearch(searchKey, combinedResults);
+    // Cache the combined search results if there are any results
+    const hasResults =
+      (combinedResults.completeSeriesTorrents && combinedResults.completeSeriesTorrents.length > 0) ||
+      (combinedResults.completeSeasonTorrents && combinedResults.completeSeasonTorrents.length > 0) ||
+      (combinedResults.episodeTorrents && combinedResults.episodeTorrents.length > 0) ||
+      (combinedResults.movieTorrents && combinedResults.movieTorrents.length > 0);
+    if (hasResults) {
+      cache.setSearch(searchKey, combinedResults);
+    } else {
+      logger.warn(`⛔ No results to cache for key: ${searchKey}`);
+    }
   } else {
     logger.info(`⚡ Search cache hit for "${tmdbData.title}"`);
   }
