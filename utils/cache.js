@@ -18,7 +18,7 @@ class CacheManager {
     this.seasonCache = new NodeCache({ stdTTL: 21600 }); // 6 hours for complete season data
     
     if (!cacheInitialized) {
-      logger.info('🚀 Cache manager initialized with optimized TTL settings');
+      logger.info('[cache] 🚀 Cache manager initialized with optimized TTL settings');
       cacheInitialized = true;
     }
   }
@@ -27,112 +27,112 @@ class CacheManager {
   getTmdb(key) {
     const result = this.tmdbCache.get(key);
     if (result) {
-      logger.debug(`💾 TMDB cache HIT for: ${key}`);
+      logger.debug(`[cache] 💾 TMDB cache HIT for: ${key}`);
       return result;
     }
-    logger.debug(`🔍 TMDB cache MISS for: ${key}`);
+    logger.debug(`[cache] 🔍 TMDB cache MISS for: ${key}`);
     return null;
   }
 
   setTmdb(key, value) {
     this.tmdbCache.set(key, value);
-    logger.debug(`💾 TMDB cached: ${key}`);
+    logger.debug(`[cache] 💾 TMDB cached: ${key}`);
   }
 
   // Cache search results (YGG/Sharewood)
   getSearch(key) {
     const result = this.searchCache.get(key);
     if (result) {
-      logger.debug(`💾 Search cache HIT for: ${key}`);
+      logger.debug(`[cache] 💾 Search cache HIT for: ${key}`);
       return result;
     }
-    logger.debug(`🔍 Search cache MISS for: ${key}`);
+    logger.debug(`[cache] 🔍 Search cache MISS for: ${key}`);
     return null;
   }
 
   setSearch(key, value) {
     this.searchCache.set(key, value);
-    logger.debug(`💾 Search cached: ${key}`);
+    logger.debug(`[cache] 💾 Search cached: ${key}`);
   }
 
   // Cache AllDebrid status
   getAllDebrid(key) {
     const result = this.alldebridCache.get(key);
     if (result) {
-      logger.debug(`💾 AllDebrid cache HIT for: ${key}`);
+      logger.debug(`[cache] 💾 AllDebrid cache HIT for: ${key}`);
       return result;
     }
-    logger.debug(`🔍 AllDebrid cache MISS for: ${key}`);
+    logger.debug(`[cache] 🔍 AllDebrid cache MISS for: ${key}`);
     return null;
   }
 
   setAllDebrid(key, value) {
     this.alldebridCache.set(key, value);
-    logger.debug(`💾 AllDebrid cached: ${key}`);
+    logger.debug(`[cache] 💾 AllDebrid cached: ${key}`);
   }
 
   // Cache processed magnets to avoid reprocessing
   getMagnet(hash) {
     const result = this.magnetCache.get(hash);
     if (result) {
-      logger.debug(`💾 Magnet cache HIT for: ${hash}`);
+      logger.debug(`[cache] 💾 Magnet cache HIT for: ${hash}`);
       return result;
     }
-    logger.debug(`🔍 Magnet cache MISS for: ${hash}`);
+    logger.debug(`[cache] 🔍 Magnet cache MISS for: ${hash}`);
     return null;
   }
 
   setMagnet(hash, value) {
     this.magnetCache.set(hash, value);
-    logger.debug(`💾 Magnet cached: ${hash}`);
+    logger.debug(`[cache] 💾 Magnet cached: ${hash}`);
   }
 
   // Cache for ready hashes (already available on AllDebrid)
   getReadyHash(hash) {
     const result = this.readyHashCache.get(`ready:${hash}`);
     if (result !== undefined) {  // Fix: check for undefined instead of falsy
-      logger.debug(`🎯 Ready hash cache HIT for: ${hash} (ready: ${result})`);
+      logger.debug(`[cache] 🎯 Ready hash cache HIT for: ${hash} (ready: ${result})`);
       return result;
     }
-    logger.debug(`🔍 Ready hash cache MISS for: ${hash}`);
+    logger.debug(`[cache] 🔍 Ready hash cache MISS for: ${hash}`);
     return null;
   }
 
   storeReadyHash(hash, isReady = true) {
     this.readyHashCache.set(`ready:${hash}`, isReady);
-    logger.debug(`💾 Ready hash cached: ${hash} (ready: ${isReady})`);
+    logger.debug(`[cache] 💾 Ready hash cached: ${hash} (ready: ${isReady})`);
   }
 
   // Cache for AllDebrid files list
   getFiles(magnetId) {
     const result = this.filesCache.get(`files:${magnetId}`);
     if (result) {
-      logger.debug(`💾 Files cache HIT for magnet: ${magnetId}`);
+      logger.debug(`[cache] 💾 Files cache HIT for magnet: ${magnetId}`);
       return result;
     }
-    logger.debug(`🔍 Files cache MISS for magnet: ${magnetId}`);
+    logger.debug(`[cache] 🔍 Files cache MISS for magnet: ${magnetId}`);
     return null;
   }
 
   setFiles(magnetId, files) {
     this.filesCache.set(`files:${magnetId}`, files);
-    logger.debug(`💾 Files cached for magnet: ${magnetId} (${files.length} files)`);
+    logger.debug(`[cache] 💾 Files cached for magnet: ${magnetId} (${files.length} files)`);
   }
 
   // Cache for unlocked download links
   getLink(linkUrl) {
     const result = this.linkCache.get(`link:${linkUrl}`);
     if (result) {
-      logger.debug(`💾 Link cache HIT for: ${linkUrl.slice(-20)}...`);
+      logger.debug(`[cache] 💾 Link cache HIT for: ${linkUrl.slice(-20)}...`);
       return result;
     }
-    logger.debug(`🔍 Link cache MISS for: ${linkUrl.slice(-20)}...`);
+    logger.debug(`[cache] 🔍 Link cache MISS for: ${linkUrl.slice(-20)}...`);
     return null;
   }
 
   setLink(linkUrl, unlockedData) {
     this.linkCache.set(`link:${linkUrl}`, unlockedData);
-    logger.debug(`💾 Link cached: ${linkUrl.slice(-20)}...`);
+    logger.debug(`[cache] 💾 Link cached: ${linkUrl.slice(-20)}...`);
   }
 
   // Helper to generate cache keys
@@ -164,16 +164,16 @@ class CacheManager {
   getSeason(key) {
     const result = this.seasonCache.get(key);
     if (result) {
-      logger.debug(`💾 Season cache HIT for: ${key}`);
+      logger.debug(`[cache] 💾 Season cache HIT for: ${key}`);
       return result;
     }
-    logger.debug(`🔍 Season cache MISS for: ${key}`);
+    logger.debug(`[cache] 🔍 Season cache MISS for: ${key}`);
     return null;
   }
 
   setSeason(key, value) {
     this.seasonCache.set(key, value);
-    logger.debug(`💾 Season cached: ${key}`);
+    logger.debug(`[cache] 💾 Season cached: ${key}`);
   }
 
   // Cache for torrent hashes (to avoid redundant hash lookups)
@@ -183,7 +183,7 @@ class CacheManager {
 
   storeHash(key, hash) {
     this.hashCache.set(key, hash);
-    logger.debug(`💾 Hash cached: ${key}`);
+    logger.debug(`[cache] 💾 Hash cached: ${key}`);
   }
 
   // Clear specific cache
@@ -227,7 +227,7 @@ class CacheManager {
         this.linkCache.flushAll();
         break;
     }
-    logger.info(`🗑️ Cleared ${type} cache`);
+    logger.info(`[cache] 🗑️ Cleared ${type} cache`);
   }
 }
 

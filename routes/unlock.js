@@ -29,7 +29,7 @@ router.get('/:variables/unlock/:encryptedData', requireAccessKey, async (req, re
   try {
     config = getConfig(req);
   } catch (e) {
-    logger.error("❌ Invalid configuration in unlock request:", e.message);
+    logger.error("[unlock] ❌ Invalid configuration in unlock request:", e.message);
     return res.status(400).json({ error: e.message });
   }
 
@@ -44,17 +44,17 @@ router.get('/:variables/unlock/:encryptedData', requireAccessKey, async (req, re
     const cacheKey = linkData.allDebridLink;
     
     // Log de la requête avec timestamp précis
-    logger.info(`🔓 UNLOCK REQUEST: ${linkData.fileName} (${linkData.source}) [${requestTime}]`);
+    logger.info(`[unlock] 🔓 UNLOCK REQUEST: ${linkData.fileName} (${linkData.source}) [${requestTime}]`);
     
     // Vérifier si ce lien a déjà été débridé récemment
     if (unlockCache.has(cacheKey)) {
       const cachedData = unlockCache.get(cacheKey);
       const totalTime = Date.now() - startTime;
-      logger.info(`🎯 CACHE HIT: ${linkData.fileName} (${totalTime}ms) [${requestTime}]`);
+      logger.info(`[unlock] 🎯 CACHE HIT: ${linkData.fileName} (${totalTime}ms) [${requestTime}]`);
       return res.redirect(cachedData.unlockedLink);
     }
     
-    logger.info(`� UNLOCKING: ${linkData.fileName} (${linkData.source})`);
+    logger.info(`[unlock] 🔓 UNLOCKING: ${linkData.fileName} (${linkData.source})`);
     
     // Débridement du lien
     const unlockedLink = await unlockFileLink(linkData.allDebridLink, config);
@@ -68,17 +68,17 @@ router.get('/:variables/unlock/:encryptedData', requireAccessKey, async (req, re
         timestamp: Date.now()
       });
       
-      logger.info(`✅ UNLOCK SUCCESS: ${linkData.fileName} in ${totalTime}ms [${requestTime}]`);
+      logger.info(`[unlock] ✅ UNLOCK SUCCESS: ${linkData.fileName} in ${totalTime}ms [${requestTime}]`);
       
       // Redirection vers le lien débloqué
       res.redirect(unlockedLink);
     } else {
-      logger.error(`❌ UNLOCK FAILED: ${linkData.fileName} [${requestTime}]`);
+      logger.error(`[unlock] ❌ UNLOCK FAILED: ${linkData.fileName} [${requestTime}]`);
       res.status(500).json({ error: 'Failed to unlock file' });
     }
     
   } catch (error) {
-    logger.error(`❌ UNLOCK ERROR: ${error.message} [${requestTime}]`);
+    logger.error(`[unlock] ❌ UNLOCK ERROR: ${error.message} [${requestTime}]`);
     res.status(400).json({ error: 'Invalid request data' });
   }
 });

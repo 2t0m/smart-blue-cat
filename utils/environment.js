@@ -58,8 +58,10 @@ function getEnvironmentConfig() {
   
   // Only log on first initialization to prevent spam
   if (!isInitialized) {
+    logger.debug(`[environment] detectEnvironment IN`);
     logger.info(`🌐 Environment detected: ${config.environment}`);
     logger.info(`📊 Config - SSL: ${config.sslEnabled ? '✅' : '❌'}, Port: ${config.port}`);
+    logger.debug(`[environment] detectEnvironment OUT`);
     logger.debug(`🔗 Base URL: ${config.baseUrl}`);
     isInitialized = true;
   }

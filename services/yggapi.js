@@ -12,11 +12,11 @@ async function getTmdbIdFromImdb(imdbId, type, config) {
   const cacheKey = `tmdb-id:${imdbId}`;
   const cachedTmdbId = cache.getHash(cacheKey);
   if (cachedTmdbId) {
-    logger.debug(`🎯 TMDB ID cache HIT for ${imdbId}: ${cachedTmdbId}`);
+    logger.debug(`[ygg] 🎯 TMDB ID cache HIT for ${imdbId}: ${cachedTmdbId}`);
     return cachedTmdbId;
   }
 
-  logger.debug(`🔍 Fetching TMDB ID for IMDB ${imdbId}...`);
+  logger.debug(`[ygg] 🔍 Fetching TMDB ID for IMDB ${imdbId}...`);
   
   try {
     const url = `https://api.themoviedb.org/3/find/${imdbId}?api_key=${config.TMDB_API_KEY}&external_source=imdb_id`;
@@ -36,15 +36,15 @@ async function getTmdbIdFromImdb(imdbId, type, config) {
       }
       
       if (tmdbId) {
-        logger.info(`✅ Found TMDB ID ${tmdbId} for IMDB ${imdbId}`);
+        logger.info(`[ygg] ✅ Found TMDB ID ${tmdbId} for IMDB ${imdbId}`);
         cache.storeHash(cacheKey, tmdbId.toString());
         return tmdbId;
       } else {
-        logger.warn(`⚠️ No TMDB ID found for IMDB ${imdbId} (type: ${type})`);
+        logger.warn(`[ygg] ⚠️ No TMDB ID found for IMDB ${imdbId} (type: ${type})`);
       }
     }
   } catch (error) {
-    logger.error(`❌ Error fetching TMDB ID for ${imdbId}: ${error.message}`);
+    logger.error(`[ygg] ❌ Error fetching TMDB ID for ${imdbId}: ${error.message}`);
   }
   
   return null;
@@ -56,11 +56,11 @@ async function getTorrentHashFromYgg(torrentId) {
   const cacheKey = `ygg-hash:${torrentId}`;
   const cachedHash = cache.getHash(cacheKey);
   if (cachedHash) {
-    logger.debug(`🎯 Hash cache HIT for torrent ${torrentId}`);
+    logger.debug(`[ygg] 🎯 Hash cache HIT for torrent ${torrentId}`);
     return cachedHash;
   }
   
-  logger.debug(`🔍 Hash cache MISS for torrent ${torrentId}, fetching...`);
+  logger.debug(`[ygg] 🔍 Hash cache MISS for torrent ${torrentId}, fetching...`);
   const url = `https://yggapi.eu/torrent/${torrentId}`;
   try {
     const response = await httpClient.get(url, {
@@ -74,7 +74,7 @@ async function getTorrentHashFromYgg(torrentId) {
       return response.data.hash;
     }
   } catch (error) {
-    logger.error(`❌ Hash Retrieval Error for ${torrentId}: ${error.message}`);
+    logger.error(`[ygg] ❌ Hash Retrieval Error for ${torrentId}: ${error.message}`);
     return null;
   }
   return null;
@@ -88,7 +88,7 @@ function processTorrents(torrents, type, season, episode, config) {
   const movieTorrents = [];
 
   if (type === "movie") {
-    logger.filter(`Searching for movies with filters - Res: [${config.RES_TO_SHOW.join(', ')}], Lang: [${config.LANG_TO_SHOW.join(', ')}], Codecs: [${config.CODECS_TO_SHOW.join(', ')}]`);
+    logger.debug(`[ygg] 🎯 Searching for movies with filters - Res: [${config.RES_TO_SHOW.join(', ')}], Lang: [${config.LANG_TO_SHOW.join(', ')}], Codecs: [${config.CODECS_TO_SHOW.join(', ')}]`);
     movieTorrents.push(
       ...torrents
         .filter(torrent => {
@@ -101,13 +101,13 @@ function processTorrents(torrents, type, season, episode, config) {
           const passes = hasRes && hasLang && hasCodec;
           
           if (!passes) {
-            logger.debug(`🚫 Movie rejected "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}`);
+            logger.debug(`[ygg] 🚫 Movie rejected "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}`);
           }
           return passes;
         })
         .map(torrent => ({ ...torrent, category: "movieTorrents", source: "YGG" }))
     );
-    logger.result(`${movieTorrents.length} movie torrents found.`);
+    logger.info(`[ygg] ✅ ${movieTorrents.length} movie torrents found.`);
   }
 
   if (type === "series") {
@@ -115,7 +115,7 @@ function processTorrents(torrents, type, season, episode, config) {
     if (season && episode) {
       const seasonFormatted = season.padStart(2, '0');
       const episodeFormatted = episode.padStart(2, '0');
-      logger.filter(`🎯 PRIORITY 1: Searching for specific episode S${seasonFormatted}E${episodeFormatted}`);
+      logger.debug(`[ygg] 🎯 PRIORITY 1: Searching for specific episode S${seasonFormatted}E${episodeFormatted}`);
       
       // Very flexible search patterns for episodes
       const episodePatterns = [
@@ -128,7 +128,7 @@ function processTorrents(torrents, type, season, episode, config) {
         `${seasonFormatted}x${episodeFormatted}`,
       ];
       
-      logger.debug(`🔍 Episode search patterns: ${episodePatterns.join(', ')}`);
+      logger.debug(`[ygg] 🔍 Episode search patterns: ${episodePatterns.join(', ')}`);
       
       episodeTorrents.push(
         ...torrents
@@ -141,19 +141,19 @@ function processTorrents(torrents, type, season, episode, config) {
             
             const passes = hasRes && hasLang && hasCodec && hasPattern;
             
-            logger.debug(`🔍 Episode "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Pattern:${hasPattern} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
+            logger.debug(`[ygg] 🔍 Episode "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Pattern:${hasPattern} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
             
             return passes;
           })
           .map(torrent => ({ ...torrent, category: "episodeTorrents", source: "YGG" }))
       );
-      logger.result(`${episodeTorrents.length} specific episode torrents found.`);
+      logger.info(`[ygg] ✅ ${episodeTorrents.length} specific episode torrents found.`);
     }
 
     // 2. PRIORITY: Search complete season (reliable fallback)
     if (season) {
       const seasonFormatted = season.padStart(2, '0');
-      logger.filter(`🎯 PRIORITY 2: Searching for complete season S${seasonFormatted}`);
+      logger.debug(`[ygg] 🎯 PRIORITY 2: Searching for complete season S${seasonFormatted}`);
 
       // Patterns for complete seasons
       const seasonPatterns = [
@@ -166,7 +166,7 @@ function processTorrents(torrents, type, season, episode, config) {
         `s${seasonFormatted} `,
       ];
 
-      logger.debug(`🔍 Season search patterns: ${seasonPatterns.join(', ')}`);
+      logger.debug(`[ygg] 🔍 Season search patterns: ${seasonPatterns.join(', ')}`);
 
       completeSeasonTorrents.push(
         ...torrents
@@ -183,18 +183,18 @@ function processTorrents(torrents, type, season, episode, config) {
             
             const passes = hasRes && hasLang && hasCodec && hasSeasonPattern && !isSpecificEpisode;
             
-            logger.debug(`🔍 Season "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Season:${hasSeasonPattern}, NotEpisode:${!isSpecificEpisode} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
+            logger.debug(`[ygg] 🔍 Season "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Season:${hasSeasonPattern}, NotEpisode:${!isSpecificEpisode} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
             
             return passes;
           })
           .map(torrent => ({ ...torrent, category: "completeSeasonTorrents", source: "YGG" }))
       );
 
-      logger.result(`${completeSeasonTorrents.length} complete season torrents found.`);
+      logger.info(`[ygg] ✅ ${completeSeasonTorrents.length} complete season torrents found.`);
     }
 
     // 3. PRIORITY: Search complete series (last resort)
-    logger.filter(`🎯 PRIORITY 3: Searching for complete series`);
+    logger.debug(`[ygg] 🎯 PRIORITY 3: Searching for complete series`);
     
     const completeSeriesPatterns = [
       'complete',
@@ -209,7 +209,7 @@ function processTorrents(torrents, type, season, episode, config) {
       's1-s'
     ];
 
-    logger.debug(`🔍 Complete series patterns: ${completeSeriesPatterns.join(', ')}`);
+    logger.debug(`[ygg] 🔍 Complete series patterns: ${completeSeriesPatterns.join(', ')}`);
 
     completeSeriesTorrents.push(
       ...torrents
@@ -222,13 +222,13 @@ function processTorrents(torrents, type, season, episode, config) {
           
           const passes = hasRes && hasLang && hasCodec && hasCompletePattern;
           
-          logger.debug(`🔍 Complete "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Complete:${hasCompletePattern} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
+          logger.debug(`[ygg] 🔍 Complete "${torrent.title}" - Res:${hasRes}, Lang:${hasLang}, Codec:${hasCodec}, Complete:${hasCompletePattern} => ${passes ? '✅ ACCEPTED' : '❌ REJECTED'}`);
           
           return passes;
         })
         .map(torrent => ({ ...torrent, category: "completeSeriesTorrents", source: "YGG" }))
     );
-    logger.result(`${completeSeriesTorrents.length} complete series torrents found.`);
+    logger.info(`[ygg] ✅ ${completeSeriesTorrents.length} complete series torrents found.`);
   }
 
   return { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents, movieTorrents };
@@ -255,9 +255,9 @@ async function performTmdbSearch(tmdbId, type, config) {
   };
   
   const categoryType = categoryMap[type] || 'tv';
-  const requestUrl = `https://yggapi.eu/torrents?page=1&order_by=downloads&per_page=25&type=${categoryType}&tmdb_id=${tmdbId}`;
+  const requestUrl = `https://yggapi.eu/torrents?page=1&order_by=downloads&per_page=50&type=${categoryType}&tmdb_id=${tmdbId}`;
 
-  logger.info(`🎯 Performing TMDB ID search: ${requestUrl}`);
+  logger.info(`[ygg] 🎯 Performing TMDB ID search: ${requestUrl}`);
 
   try {
     const response = await httpClient.get(requestUrl, {
@@ -267,25 +267,25 @@ async function performTmdbSearch(tmdbId, type, config) {
     });
     
     const torrents = response.data || [];
-    logger.info(`✅ Found ${torrents.length} torrents using TMDB ID ${tmdbId}`);
+    logger.info(`[ygg] ✅ Found ${torrents.length} torrents using TMDB ID ${tmdbId}`);
     
     if (torrents.length > 0) {
-      logger.debug(`🔍 First 3 TMDB search results:`);
+      logger.debug(`[ygg] 🔍 First 3 TMDB search results:`);
       torrents.slice(0, 3).forEach((torrent, index) => {
-        logger.debug(`   ${index + 1}. "${torrent.title}"`);
+        logger.debug(`[ygg]    ${index + 1}. "${torrent.title}"`);
       });
     }
 
     return torrents;
   } catch (error) {
-    logger.error("❌ TMDB Search Error:", error.message);
+    logger.error("[ygg] ❌ TMDB Search Error:", error.message);
     return [];
   }
 }
 
 async function searchYgg(title, type, season, episode, config, frenchTitle, year, imdbId) {
-  logger.search(`Searching for torrents on YggTorrent`);
-  logger.verbose(`🎯 Search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}, IMDB: ${imdbId || 'N/A'}`);
+  logger.verbose(`[ygg] 🔍 Searching for torrents on YggTorrent`);
+  logger.verbose(`[ygg] 🎯 Search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}, IMDB: ${imdbId || 'N/A'}`);
 
   // NEW: Try to get TMDB ID from IMDB ID for more precise search
   let tmdbId = null;
@@ -295,65 +295,65 @@ async function searchYgg(title, type, season, episode, config, frenchTitle, year
 
   // If we have TMDB ID, try TMDB search first
   if (tmdbId) {
-    logger.info(`🎯 Using TMDB ID search for more precise results: ${tmdbId}`);
+    logger.info(`[ygg] 🎯 Using TMDB ID search for more precise results: ${tmdbId}`);
     const tmdbTorrents = await performTmdbSearch(tmdbId, type, config);
     
     if (tmdbTorrents.length > 0) {
-      logger.info(`✅ Found ${tmdbTorrents.length} torrents using TMDB search, processing...`);
+      logger.info(`[ygg] ✅ Found ${tmdbTorrents.length} torrents using TMDB search, processing...`);
       return processTorrents(tmdbTorrents, type, season, episode, config);
     } else {
-      logger.warn(`⚠️ No results with TMDB search, falling back to text search`);
+      logger.warn(`[ygg] ⚠️ No results with TMDB search, falling back to text search`);
     }
   }
 
   // FALLBACK: Traditional text-based search
-  logger.info(`🔍 Using text-based search as ${tmdbId ? 'fallback' : 'primary method'}`);
+  logger.info(`[ygg] 🔍 Using text-based search as ${tmdbId ? 'fallback' : 'primary method'}`);
 
   // Use the title for the search, add year for movies to improve accuracy
   let searchTitle = (type === 'movie' && year) ? `${title} ${year}` : title;
   if (type === 'movie' && year) {
-    logger.info(`🎬 Adding year to movie search: "${title}" → "${searchTitle}"`);
+    logger.info(`[ygg] 🎬 Adding year to movie search: "${title}" → "${searchTitle}"`);
   }
 
   // Check for custom search keywords
   const customKeywords = process.env.CUSTOM_SEARCH_KEYWORDS || "";
-  logger.debug(`🔍 CUSTOM_SEARCH_KEYWORDS: ${customKeywords}`);
+  logger.debug(`[ygg] 🔍 CUSTOM_SEARCH_KEYWORDS: ${customKeywords}`);
 
   const keywordMap = Object.fromEntries(
     customKeywords.split(",").map(entry => entry.split("=").map(s => s.trim()))
   );
 
-  logger.debug(`🔍 Keyword Map: ${JSON.stringify(keywordMap, null, 2)}`);
-  logger.debug(`🔍 Checking for custom keywords for IMDB ID: ${imdbId || 'N/A'}`);
+  // logger.debug(`🔍 Keyword Map: ${JSON.stringify(keywordMap, null, 2)}`); // Suppressed: too verbose
+  logger.debug(`[ygg] 🔍 Checking for custom keywords for IMDB ID: ${imdbId || 'N/A'}`);
 
   // Add custom keywords if a match is found
   if (imdbId && keywordMap[imdbId]) {
     const customKeyword = keywordMap[imdbId];
     searchTitle += ` ${customKeyword}`;
-    logger.info(`🔍 Custom keywords added for "${title}": ${customKeyword}`);
+    logger.info(`[ygg] 🔍 Custom keywords added for "${title}": ${customKeyword}`);
   } else {
-    logger.debug(`🔍 No custom keywords found for "${imdbId || 'N/A'}".`);
+    logger.debug(`[ygg] 🔍 No custom keywords found for "${imdbId || 'N/A'}".`);
   }
 
   let torrents = await performSearch(searchTitle, type, config, season, episode);
 
   // If no results, try with the French title
   if (torrents.length === 0 && frenchTitle && title !== frenchTitle) {
-    logger.warn(`📢 No results found with "${searchTitle}", trying with "${frenchTitle}"`);
+    logger.warn(`[ygg] 📢 No results found with "${searchTitle}", trying with "${frenchTitle}"`);
     searchTitle = frenchTitle;
 
     // Add custom keywords for the French title if available
     if (imdbId && keywordMap[imdbId]) {
       const customKeyword = keywordMap[imdbId];
       searchTitle += ` ${customKeyword}`;
-      logger.info(`🔍 Custom keywords added for "${frenchTitle}": ${customKeyword}`);
+      logger.info(`[ygg] 🔍 Custom keywords added for "${frenchTitle}": ${customKeyword}`);
     }
 
     torrents = await performSearch(searchTitle, type, config, season, episode);
   }
 
   if (torrents.length === 0) {
-    logger.error(`❌ No torrents found for ${searchTitle}`);
+    logger.error(`[ygg] ❌ No torrents found for ${searchTitle}`);
     return { completeSeriesTorrents: [], completeSeasonTorrents: [], episodeTorrents: [], movieTorrents: [] };
   }
 
@@ -368,7 +368,7 @@ async function performSearch(searchTitle, type, config, season = null, episode =
   const categoryParams = categoryIds.map(id => `category_id=${id}`).join('&');
   const requestUrl = `https://yggapi.eu/torrents?q=${encodeURIComponent(searchTitle)}&page=1&per_page=25&order_by=downloads&${categoryParams}`;
 
-  logger.info(`🔍 Performing YGG text search: ${requestUrl}`);
+  logger.info(`[ygg] 🔍 Performing YGG text search: ${requestUrl}`);
 
   try {
     const response = await httpClient.get(requestUrl, {
@@ -379,13 +379,13 @@ async function performSearch(searchTitle, type, config, season = null, episode =
     });
     let torrents = response.data || [];
 
-    logger.info(`✅ Found ${torrents.length} torrents on YggTorrent for "${searchTitle}".`);
+    logger.info(`[ygg] ✅ Found ${torrents.length} torrents on YggTorrent for "${searchTitle}".`);
     
     // Log des premiers torrents pour debug
     if (torrents.length > 0) {
-      logger.debug(`🔍 First 5 torrent titles found:`);
+      logger.debug(`[ygg] 🔍 First 5 torrent titles found:`);
       torrents.slice(0, 5).forEach((torrent, index) => {
-        logger.debug(`   ${index + 1}. "${torrent.title}"`);
+        logger.debug(`[ygg]    ${index + 1}. "${torrent.title}"`);
       });
     }
 
@@ -413,16 +413,16 @@ async function performSearch(searchTitle, type, config, season = null, episode =
 
     // Log top 3 results with their scores for debugging
     if (torrents.length > 0) {
-      logger.debug(`📊 Top ${Math.min(3, torrents.length)} YGG torrents by quality score:`);
+      logger.debug(`[ygg] 📊 Top ${Math.min(3, torrents.length)} YGG torrents by quality score:`);
       torrents.slice(0, 3).forEach((torrent, i) => {
         const score = calculateQualityScore(torrent, config);
-        logger.debug(`  ${i + 1}. "${torrent.title}" (Score: ${score}, Seeders: ${torrent.seeders || 0})`);
+        logger.debug(`[ygg]   ${i + 1}. "${torrent.title}" (Score: ${score}, Seeders: ${torrent.seeders || 0})`);
       });
     }
 
     return torrents;
   } catch (error) {
-    logger.error("❌ Ygg Search Error:", error.message);
+    logger.error("[ygg] ❌ Ygg Search Error:", error.message);
     return [];
   }
 }

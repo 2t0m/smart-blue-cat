@@ -1,7 +1,5 @@
 const winston = require('winston');
 
-const logLevel = process.env.LOG_LEVEL?.toLowerCase() || 'info';
-console.log(`[LOGGER INIT] LOG_LEVEL env = "${process.env.LOG_LEVEL}", using logLevel = "${logLevel}"`);
 
 // Define custom levels for more granularity
 const customLevels = {
@@ -23,6 +21,7 @@ const customLevels = {
   }
 };
 
+const logLevel = process.env.LOG_LEVEL?.toLowerCase() || 'info';
 winston.addColors(customLevels.colors);
 
 const logger = winston.createLogger({
@@ -40,13 +39,7 @@ const logger = winston.createLogger({
   ]
 });
 
-// Add specialized logging methods
-logger.request = (message) => logger.info(`📥 ${message}`);
-logger.search = (message) => logger.verbose(`🔍 ${message}`);
-logger.filter = (message) => logger.debug(`🎯 ${message}`);
-logger.result = (message) => logger.info(`✅ ${message}`);
-logger.upload = (message) => logger.verbose(`🔄 ${message}`);
-logger.unlock = (message) => logger.debug(`🔓 ${message}`);
-logger.skip = (message) => logger.debug(`⏭️ ${message}`);
+logger.info(`[LOGGER INIT] LOG_LEVEL env = "${process.env.LOG_LEVEL}", using logLevel = "${logLevel}"`);
+
 
 module.exports = logger;

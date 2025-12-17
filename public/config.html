@@ -375,7 +375,9 @@
           document.getElementById('names').value = (decodedConfig.NAMES || "");
           document.getElementById('accesskey').value = decodedConfig.ACCESS_KEY || "";
         } catch (error) {
-          console.error("Error decoding configuration:", error);
+          if (window.logger && window.logger.error) {
+            window.logger.error("Error decoding configuration:", error);
+          }
         }
       }
     }
@@ -676,7 +678,9 @@
           });
           
         } catch (error) {
-          console.error("Error decoding configuration:", error);
+          if (window.logger && window.logger.error) {
+            window.logger.error("Error decoding configuration:", error);
+          }
         }
       }
     }

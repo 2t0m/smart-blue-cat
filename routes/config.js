@@ -14,7 +14,7 @@ router.get('/configure', (req, res) => {
 
   res.sendFile(configPath, (err) => {
     if (err) {
-      logger.error("❌ Error serving the configuration page:", err.message);
+      logger.error("[config] ❌ Error serving the configuration page:", err.message);
       res.status(500).send("Error loading configuration page.");
     }
   });
@@ -40,7 +40,7 @@ router.get('/logo.png', (req, res) => {
   }
   
   // Fallback to placeholder
-  logger.warn("❌ Logo files not found, serving placeholder");
+  logger.warn("[config] ❌ Logo files not found, serving placeholder");
   const svgLogo = `
     <svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
       <rect width="128" height="128" fill="#4A90E2" rx="20"/>
@@ -60,7 +60,7 @@ router.get('/:variables/configure', (req, res) => {
   try {
     config = getConfig(req);
   } catch (e) {
-    logger.error("❌ Invalid configuration in request:", e.message);
+    logger.error("[config] ❌ Invalid configuration in request:", e.message);
     return res.status(400).send("Invalid configuration!");
   }
 
@@ -69,7 +69,7 @@ router.get('/:variables/configure', (req, res) => {
   // Read and process the HTML file
   fs.readFile(configPath, 'utf8', (err, data) => {
     if (err) {
-      logger.error("❌ Error reading the configuration page:", err.message);
+      logger.error("[config] ❌ Error reading the configuration page:", err.message);
       return res.status(500).send("Error loading configuration page.");
     }
 
@@ -107,10 +107,10 @@ router.get('/status', async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    logger.debug('📊 Status requested:', JSON.stringify(status, null, 2));
+    // logger.debug('[config] 📊 Status requested:', JSON.stringify(status, null, 2)); // Suppressed: too verbose
     res.json(status);
   } catch (error) {
-    logger.error('❌ Error getting status:', error.message);
+    logger.error('[config] ❌ Error getting status:', error.message);
     res.status(500).json({ error: 'Failed to get status' });
   }
 });

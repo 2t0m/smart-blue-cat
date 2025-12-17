@@ -36,7 +36,7 @@ async function checkInstantAvailability(hashes, config) {
         cached: true
       };
       readyHashHits++;
-      logger.debug(`🎯 Ready hash found in cache: ${hash} (ready: ${readyCache})`);
+      logger.debug(`[alldebrid] 🎯 Ready hash found in cache: ${hash} (ready: ${readyCache})`);
     } else {
       uncachedHashes.push(hash);
     }
@@ -45,7 +45,7 @@ async function checkInstantAvailability(hashes, config) {
   // If all hashes were found in ready cache, return immediately
   if (uncachedHashes.length === 0) {
     const instantCount = Object.values(results).filter(r => r.instant).length;
-    logger.info(`🎯 Ready hash cache: ${instantCount}/${hashes.length} magnets instantly ready (${readyHashHits} cache hits)`);
+    logger.info(`[alldebrid] 🎯 Ready hash cache: ${instantCount}/${hashes.length} magnets instantly ready (${readyHashHits} cache hits)`);
     return results;
   }
 
@@ -56,7 +56,7 @@ async function checkInstantAvailability(hashes, config) {
   if (cached) {
     // Merge cached results with ready hash results
     Object.assign(results, cached);
-    logger.debug(`⚡ AllDebrid cache hit for ${uncachedHashes.length} remaining hashes`);
+    logger.debug(`[alldebrid] ⚡ AllDebrid cache hit for ${uncachedHashes.length} remaining hashes`);
   } else {
     // No cache hit - mark remaining hashes as not instantly available
     uncachedHashes.forEach(hash => {
@@ -87,7 +87,7 @@ async function checkInstantAvailability(hashes, config) {
   }
   
   const instantCount = Object.values(results).filter(r => r.instant).length;
-  logger.info(`🎯 Instant availability check: ${instantCount}/${hashes.length} magnets instantly ready (${readyHashHits} from ready cache)`);
+  logger.info(`[alldebrid] 🎯 Instant availability check: ${instantCount}/${hashes.length} magnets instantly ready (${readyHashHits} from ready cache)`);
   
   return results;
 }
@@ -123,10 +123,10 @@ async function uploadMagnets(magnets, config) {
     return acc;
   }, { readyMagnets: [], needUpload: [] });
 
-  logger.info(`🎯 Upload optimization: ${readyMagnets.length} instant ready, ${needUpload.length} need upload`);
+  logger.info(`[alldebrid] 🎯 Upload optimization: ${readyMagnets.length} instant ready, ${needUpload.length} need upload`);
 
   if (needUpload.length === 0) {
-    logger.info('⚡ All magnets instantly available from cache!');
+    logger.info('[alldebrid] ⚡ All magnets instantly available from cache!');
     return readyMagnets;
   }
 
@@ -139,7 +139,7 @@ async function uploadMagnets(magnets, config) {
   uploadHashes.forEach(hash => formData.append("magnets[]", hash));
 
   try {
-    logger.info("🔄 Uploading magnets...");
+    logger.info("[alldebrid] 🔄 Uploading magnets...");
     const response = await makeAllDebridRequest(async () => {
       return axios.post(url, formData, {
         headers: {
@@ -151,16 +151,16 @@ async function uploadMagnets(magnets, config) {
     }, 'magnet-upload');
 
     if (response.data.status === "success") {
-      logger.info(`✅ Successfully uploaded ${response.data.data.magnets.length} magnets.`);
-      logger.debug(JSON.stringify(response.data, null, 2));
+      logger.info(`[alldebrid] ✅ Successfully uploaded ${response.data.data.magnets.length} magnets.`);
+      // logger.debug(JSON.stringify(response.data, null, 2)); // Suppressed: too verbose
       
       try {
-        logger.debug(`🔧 DEBUG: Starting cleanup and storage...`);
+        logger.debug(`[alldebrid] 🔧 DEBUG: Starting cleanup and storage...`);
         scheduleCleanup(config);
         
-        logger.debug(`🔧 DEBUG: Processing magnets...`);
+        logger.debug(`[alldebrid] 🔧 DEBUG: Processing magnets...`);
         for (const magnet of response.data.data.magnets) {
-          logger.debug(`🔧 DEBUG: Processing magnet - ID: ${magnet.id}, Hash: ${magnet.hash || 'MISSING'}, Name: ${magnet.name || 'MISSING'}`);
+          logger.debug(`[alldebrid] 🔧 DEBUG: Processing magnet - ID: ${magnet.id}, Hash: ${magnet.hash || 'MISSING'}, Name: ${magnet.name || 'MISSING'}`);
           if (magnet.id && magnet.hash && magnet.name) {
             // Cache processed magnet to avoid reprocessing
             cache.setMagnet(magnet.hash, { 
@@ -172,13 +172,13 @@ async function uploadMagnets(magnets, config) {
             // Cache ready status for future instant availability checks
             cache.storeReadyHash(magnet.hash, magnet.ready);
             
-            logger.debug(`✅ Stored magnet: ${magnet.id}`);
+            logger.debug(`[alldebrid] ✅ Stored magnet: ${magnet.id}`);
           } else {
-            logger.warn(`⚠️ Skipping invalid magnet - ID: ${magnet.id}, Hash: ${magnet.hash}, Name: ${magnet.name}`);
+            logger.warn(`[alldebrid] ⚠️ Skipping invalid magnet - ID: ${magnet.id}, Hash: ${magnet.hash}, Name: ${magnet.name}`);
           }
         }
         
-        logger.debug(`🔧 DEBUG: Mapping magnet results...`);
+        logger.debug(`[alldebrid] 🔧 DEBUG: Mapping magnet results...`);
         const result = response.data.data.magnets.map(magnet => ({
           hash: magnet.hash,
           ready: magnet.ready ? '✅ Ready' : '❌ Not ready',
@@ -188,39 +188,39 @@ async function uploadMagnets(magnets, config) {
           source: needUpload.find(m => m.hash === magnet.hash)?.source || "Unknown"
         }));
         
-        logger.debug(`🔧 DEBUG: Successfully processed ${result.length} magnets`);
+        logger.debug(`[alldebrid] 🔧 DEBUG: Successfully processed ${result.length} magnets`);
         
         // Combine ready magnets with newly uploaded ones
         const allResults = [...readyMagnets, ...result];
-        logger.info(`🎯 Upload complete: ${readyMagnets.length} instant + ${result.length} uploaded = ${allResults.length} total`);
+        logger.info(`[alldebrid] 🎯 Upload complete: ${readyMagnets.length} instant + ${result.length} uploaded = ${allResults.length} total`);
         
         return allResults;
       } catch (debugError) {
-        logger.error(`❌ DEBUG: Error in success block: ${debugError.message}`);
-        logger.error(`❌ DEBUG: Stack trace: ${debugError.stack}`);
+        logger.error(`[alldebrid] ❌ DEBUG: Error in success block: ${debugError.message}`);
+        logger.error(`[alldebrid] ❌ DEBUG: Stack trace: ${debugError.stack}`);
         throw debugError;
       }
     } else {
       // Log status, error code and message if present
       const { status, error } = response.data;
       if (error && error.code && error.message) {
-        logger.error(`❌ Error uploading magnets: status=${status}, code=${error.code}, message=${error.message}`);
+        logger.error(`[alldebrid] ❌ Error uploading magnets: status=${status}, code=${error.code}, message=${error.message}`);
       } else {
-        logger.warn(`❌ Error uploading magnets: ${JSON.stringify(response.data, null, 2)}`);
+        logger.warn(`[alldebrid] ❌ Error uploading magnets: [response data suppressed]`);
       }
       scheduleCleanup(config);
       
       // Return ready magnets even if upload failed
-      logger.info(`⚠️ Upload failed but returning ${readyMagnets.length} instant ready magnets`);
+      logger.info(`[alldebrid] ⚠️ Upload failed but returning ${readyMagnets.length} instant ready magnets`);
       return readyMagnets;
     }
   } catch (error) {
-    logger.error("❌ Upload error:", error.response?.data || error.message);
-    logger.debug("AllDebrid upload error full response:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    logger.error("[alldebrid] ❌ Upload error:", error.response?.data || error.message);
+    // logger.debug("AllDebrid upload error full response:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2)); // Suppressed: too verbose
     scheduleCleanup(config);
     
     // Return ready magnets even if upload failed
-    logger.info(`⚠️ Upload error but returning ${readyMagnets.length} instant ready magnets`);
+    logger.info(`[alldebrid] ⚠️ Upload error but returning ${readyMagnets.length} instant ready magnets`);
     return readyMagnets;
   }
 }
@@ -230,8 +230,8 @@ async function getFilesFromMagnetId(magnetId, source, config) {
   // Check cache first
   const cachedFiles = cache.getFiles(magnetId);
   if (cachedFiles) {
-    logger.info(`🎥 ${cachedFiles.length} video(s) found for magnet ID: ${magnetId} (cached)`);
-    logger.debug(`🎥 Filtered videos for magnet ID ${magnetId}: ${JSON.stringify(cachedFiles, null, 2)}`);
+    logger.info(`[alldebrid] 🎥 ${cachedFiles.length} video(s) found for magnet ID: ${magnetId} (cached)`);
+    // logger.debug(`🎥 Filtered videos for magnet ID ${magnetId}: ${JSON.stringify(cachedFiles, null, 2)}`); // Suppressed: too verbose
     return cachedFiles;
   }
 
@@ -240,7 +240,7 @@ async function getFilesFromMagnetId(magnetId, source, config) {
   formData.append("id[]", magnetId);
 
   try {
-    logger.info(`🔄 Retrieving files for magnet ID: ${magnetId}`);
+    logger.info(`[alldebrid] 🔄 Retrieving files for magnet ID: ${magnetId}`);
     const response = await makeAllDebridRequest(async () => {
       return axios.post(url, formData, {
         headers: {
@@ -283,16 +283,16 @@ async function getFilesFromMagnetId(magnetId, source, config) {
       // Cache the result
       cache.setFiles(magnetId, filteredVideos);
 
-      logger.info(`🎥 ${filteredVideos.length} video(s) found for magnet ID: ${magnetId}`);
-      logger.debug(`🎥 Filtered videos for magnet ID ${magnetId}: ${JSON.stringify(filteredVideos, null, 2)}`);
+      logger.info(`[alldebrid] 🎥 ${filteredVideos.length} video(s) found for magnet ID: ${magnetId}`);
+      // logger.debug(`🎥 Filtered videos for magnet ID ${magnetId}: ${JSON.stringify(filteredVideos, null, 2)}`); // Suppressed: too verbose
 
       return filteredVideos;
     } else {
-      logger.warn("❌ Error retrieving files:", response.data.data);
+      logger.warn("[alldebrid] ❌ Error retrieving files:", response.data.data);
       return [];
     }
   } catch (error) {
-    logger.error("❌ File retrieval error:", error);
+    logger.error("[alldebrid] ❌ File retrieval error:", error);
     return [];
   }
 }
@@ -302,7 +302,7 @@ async function unlockFileLink(fileLink, config) {
   // Check cache first
   const cachedLink = cache.getLink(fileLink);
   if (cachedLink) {
-    logger.info(`🔄 Unlocking link: ${fileLink} (cached)`);
+    logger.info(`[alldebrid] 🔄 Unlocking link: ${fileLink} (cached)`);
     return cachedLink;
   }
 
@@ -311,7 +311,7 @@ async function unlockFileLink(fileLink, config) {
   formData.append("link", fileLink);
 
   try {
-    logger.info(`🔄 Unlocking link: ${fileLink}`);
+    logger.info(`[alldebrid] 🔄 Unlocking link: ${fileLink}`);
     const response = await makeAllDebridRequest(async () => {
       return axios.post(url, formData, {
         headers: {
@@ -328,11 +328,11 @@ async function unlockFileLink(fileLink, config) {
       cache.setLink(fileLink, unlockedLink);
       return unlockedLink;
     } else {
-      logger.warn("❌ Error unlocking link:", response.data.data);
+      logger.warn("[alldebrid] ❌ Error unlocking link:", response.data.data);
       return null;
     }
   } catch (error) {
-    logger.error("❌ Unlock error:", error);
+    logger.error("[alldebrid] ❌ Unlock error:", error);
     return null;
   }
 }
@@ -356,13 +356,13 @@ async function cleanupOldMagnets(config, maxCount = 100, deleteCount = 20) {
       
       if (response.data.status === "success" && response.data.data.magnets) {
         const magnets = response.data.data.magnets;
-        logger.debug(`🔢 Active magnets on AllDebrid: ${magnets.length}`);
+        logger.debug(`[alldebrid] 🔢 Active magnets on AllDebrid: ${magnets.length}`);
         
         if (magnets.length > maxCount) {
           // Sort by upload date (oldest first) and take the oldest ones
           const sortedMagnets = magnets.sort((a, b) => a.uploadDate - b.uploadDate);
           const toDelete = sortedMagnets.slice(0, deleteCount);
-          logger.info(`🧹 Deleting ${toDelete.length} oldest magnets (limit: ${deleteCount}) because total > ${maxCount}.`);
+          logger.info(`[alldebrid] 🧹 Deleting ${toDelete.length} oldest magnets (limit: ${deleteCount}) because total > ${maxCount}.`);
 
           // Prepare formData with multiple ids[]
           const formData = new FormData();
@@ -380,17 +380,17 @@ async function cleanupOldMagnets(config, maxCount = 100, deleteCount = 20) {
           }, 'magnet-delete');
           
           if (deleteResponse.data.status === "success") {
-            logger.info(`🗑️ Deleted magnets from AllDebrid: ${toDelete.map(m => m.filename || m.id).join(', ')}`);
+            logger.info(`[alldebrid] 🗑️ Deleted magnets from AllDebrid: ${toDelete.map(m => m.filename || m.id).join(', ')}`);
           } else {
-            logger.warn(`❌ Failed to delete magnets: ${JSON.stringify(deleteResponse.data, null, 2)}`);
+            logger.warn(`[alldebrid] ❌ Failed to delete magnets: [response data suppressed]`);
           }
         }
       }
     } catch (err) {
-      logger.error(`❌ Error during magnet cleanup: ${err.message}`);
+      logger.error(`[alldebrid] ❌ Error during magnet cleanup: ${err.message}`);
     }
   } catch (err) {
-    logger.error("❌ Error during magnet cleanup:", err.message);
+    logger.error("[alldebrid] ❌ Error during magnet cleanup:", err.message);
   }
 }
 

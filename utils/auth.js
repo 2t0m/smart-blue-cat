@@ -12,7 +12,7 @@ function requireAccessKey(req, res, next) {
   
   // Access key must be configured on server
   if (!serverKey || serverKey === 'your-secret-key-here') {
-    logger.error('❌ ACCESS_KEY not configured in environment variables');
+    logger.error('[auth] ❌ ACCESS_KEY not configured in environment variables');
     return res.status(500).json({
       error: 'Server misconfiguration',
       message: 'Access key not configured on server'
@@ -26,14 +26,14 @@ function requireAccessKey(req, res, next) {
       const decoded = Buffer.from(req.params.variables, 'base64').toString('utf8');
       userConfig = JSON.parse(decoded);
     } else {
-      logger.warn(`🔒 Access denied - No configuration provided from ${req.ip}`);
+      logger.warn(`[auth] 🔒 Access denied - No configuration provided from ${req.ip}`);
       return res.status(400).json({
         error: 'Configuration required',
         message: 'Please provide a valid configuration'
       });
     }
   } catch (e) {
-    logger.warn(`🔒 Access denied - Invalid configuration from ${req.ip}`);
+    logger.warn(`[auth] 🔒 Access denied - Invalid configuration from ${req.ip}`);
     return res.status(400).json({
       error: 'Invalid configuration',
       message: 'The configuration is malformed'
@@ -43,7 +43,7 @@ function requireAccessKey(req, res, next) {
   const providedKey = userConfig.ACCESS_KEY;
   
   if (!providedKey) {
-    logger.warn(`🔒 Access denied - No access key in config from ${req.ip}`);
+    logger.warn(`[auth] 🔒 Access denied - No access key in config from ${req.ip}`);
     return res.status(401).json({
       error: 'Authentication required',
       message: 'Please include an access key in your configuration'
@@ -51,7 +51,7 @@ function requireAccessKey(req, res, next) {
   }
   
   if (providedKey !== serverKey) {
-    logger.warn(`🔒 Access denied - Invalid key from ${req.ip}`);
+    logger.warn(`[auth] 🔒 Access denied - Invalid key from ${req.ip}`);
     return res.status(403).json({
       error: 'Invalid access key',
       message: 'The provided access key is invalid'
@@ -59,7 +59,7 @@ function requireAccessKey(req, res, next) {
   }
   
   // Valid key - allow access
-  logger.debug(`✅ Access granted with valid key from ${req.ip}`);
+  logger.debug(`[auth] ✅ Access granted with valid key from ${req.ip}`);
   next();
 }
 

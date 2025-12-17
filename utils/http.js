@@ -6,6 +6,7 @@ class HttpClient {
     this.defaultTimeout = 10000; // 10s
     this.maxRetries = 3;
     this.baseDelay = 1000; // 1s
+
   }
 
   /**
@@ -95,6 +96,7 @@ class HttpClient {
         }
       }
     }
+
 
     throw lastError;
   }

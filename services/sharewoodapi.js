@@ -36,12 +36,12 @@ async function searchSharewood(title, type, season = null, episode = null, confi
   
   const requestUrl = `https://www.sharewood.tv/api/${config.SHAREWOOD_PASSKEY}/search?name=${encodeURIComponent(title)}&category=1&subcategory_id=${subcategoryParams}`;
 
-  logger.search(`Searching for torrents on Sharewood`);
-  logger.verbose(`🎯 Sharewood search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+  logger.verbose(`[sharewood] 🔍 Searching for torrents on Sharewood`);
+  logger.verbose(`[sharewood] 🎯 Sharewood search params - Title: "${title}", Type: ${type}, Year: ${year || 'N/A'}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
   if (type === 'movie' && year) {
-    logger.info(`🎬 Adding year to Sharewood movie search: "${title}" → "${title} ${year}"`);
+    logger.info(`[sharewood] 🎬 Adding year to Sharewood movie search: "${title}" → "${title} ${year}"`);
   }
-  logger.info(`🔍 Performing Sharewood search with URL: ${requestUrl}`);
+  logger.info(`[sharewood] 🔍 Performing Sharewood search with URL: ${requestUrl}`);
 
   try {
     const response = await httpClient.get(requestUrl, {
@@ -52,20 +52,20 @@ async function searchSharewood(title, type, season = null, episode = null, confi
     });
     const torrents = response.data || [];
 
-    logger.info(`✅ Found ${torrents.length} torrents on Sharewood for "${title}".`);
+    logger.info(`[sharewood] ✅ Found ${torrents.length} torrents on Sharewood for "${title}".`);
     
     // Log des premiers torrents pour debug
     if (torrents.length > 0) {
-      logger.debug(`🔍 First 3 Sharewood torrent titles found:`);
+      logger.debug(`[sharewood] 🔍 First 3 Sharewood torrent titles found:`);
       torrents.slice(0, 3).forEach((torrent, index) => {
-        logger.debug(`   ${index + 1}. "${torrent.name}"`);
+        logger.debug(`[sharewood]    ${index + 1}. "${torrent.name}"`);
       });
     }
 
     // Process torrents to structure the results
     return processTorrents(torrents, type, season, episode, config);
   } catch (error) {
-    logger.error(`❌ Sharewood Search Error: ${error.message}`);
+    logger.error(`[sharewood] ❌ Sharewood Search Error: ${error.message}`);
     return {
       completeSeriesTorrents: [],
       completeSeasonTorrents: [],
@@ -77,8 +77,8 @@ async function searchSharewood(title, type, season = null, episode = null, confi
 
 // Process torrents based on type, season, and episode with priority system
 function processTorrents(torrents, type, season, episode, config) {
-  logger.filter(`🎯 Processing ${torrents.length} Sharewood torrents`);
-  logger.debug(`📊 Request params - Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+  logger.debug(`[sharewood] 🎯 Processing ${torrents.length} Sharewood torrents`);
+  logger.debug(`[sharewood] 📊 Request params - Type: ${type}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
 
   const completeSeriesTorrents = [];
   const completeSeasonTorrents = [];
@@ -86,21 +86,21 @@ function processTorrents(torrents, type, season, episode, config) {
   const movieTorrents = [];
 
   if (type === "movie") {
-    logger.filter(`🎬 Processing movies`);
+    logger.debug(`[sharewood] 🎬 Processing movies`);
     
     torrents.forEach(torrent => {
       if (meetsCriteria(torrent, config)) {
         movieTorrents.push(formatTorrent(torrent));
-        logger.debug(`✅ Movie added: "${torrent.name}"`);
+        logger.debug(`[sharewood] ✅ Movie added: "${torrent.name}"`);
       }
     });
     
-    logger.info(`🎬 Found ${movieTorrents.length} valid movie torrents on Sharewood`);
+    logger.info(`[sharewood] 🎬 Found ${movieTorrents.length} valid movie torrents on Sharewood`);
     return { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents, movieTorrents };
   }
 
   if (type === "series") {
-    logger.filter(`📺 Processing series - prioritizing episode → season → complete series`);
+    logger.debug(`[sharewood] 📺 Processing series - prioritizing episode → season → complete series`);
     
     // Priority 1: Specific episodes (if season & episode provided)
     if (season && episode) {
@@ -116,8 +116,8 @@ function processTorrents(torrents, type, season, episode, config) {
         `saison.${season}.episode.${episode}` // French format
       ];
 
-      logger.filter(`🎯 Priority 1 - Searching for specific episode S${seasonPadded}E${episodePadded}`);
-      logger.debug(`🔍 Episode patterns: ${episodePatterns.join(', ')}`);
+      logger.debug(`[sharewood] 🎯 Priority 1 - Searching for specific episode S${seasonPadded}E${episodePadded}`);
+      logger.debug(`[sharewood] 🔍 Episode patterns: ${episodePatterns.join(', ')}`);
 
       torrents.forEach(torrent => {
         const name = torrent.name.toLowerCase();
@@ -128,11 +128,11 @@ function processTorrents(torrents, type, season, episode, config) {
         
         if (hasEpisodePattern && isNotSeasonPack && meetsCriteria(torrent, config)) {
           episodeTorrents.push(formatTorrent(torrent));
-          logger.debug(`✅ Episode torrent added: "${torrent.name}"`);
+          logger.debug(`[sharewood] ✅ Episode torrent added: "${torrent.name}"`);
         }
       });
       
-      logger.info(`� Found ${episodeTorrents.length} episode-specific torrents`);
+      logger.info(`[sharewood] 📺 Found ${episodeTorrents.length} episode-specific torrents`);
     }
 
     // Priority 2: Complete seasons (if season provided)
@@ -147,8 +147,8 @@ function processTorrents(torrents, type, season, episode, config) {
         `saison ${season}`           // saison 1
       ];
 
-      logger.filter(`🎯 Priority 2 - Searching for complete season S${seasonPadded}`);
-      logger.debug(`🔍 Season patterns: ${seasonPatterns.join(', ')}`);
+      logger.debug(`[sharewood] 🎯 Priority 2 - Searching for complete season S${seasonPadded}`);
+      logger.debug(`[sharewood] 🔍 Season patterns: ${seasonPatterns.join(', ')}`);
 
       torrents.forEach(torrent => {
         const name = torrent.name.toLowerCase();
@@ -181,11 +181,11 @@ function processTorrents(torrents, type, season, episode, config) {
         
         if (hasSeasonIndicator && isNotSpecificEpisode && meetsCriteria(torrent, config)) {
           completeSeasonTorrents.push(formatTorrent(torrent));
-          logger.debug(`✅ Season torrent added: "${torrent.name}"`);
+          logger.debug(`[sharewood] ✅ Season torrent added: "${torrent.name}"`);
         }
       });
       
-      logger.info(`� Found ${completeSeasonTorrents.length} complete season torrents`);
+      logger.info(`[sharewood] 📦 Found ${completeSeasonTorrents.length} complete season torrents`);
     }
 
     // Priority 3: Complete series (fallback)
@@ -195,8 +195,8 @@ function processTorrents(torrents, type, season, episode, config) {
       'season.*complete', 'multi.*season', 'toutes.*saisons'
     ];
 
-    logger.filter(`🎯 Priority 3 - Searching for complete series`);
-    logger.debug(`🔍 Series patterns: ${seriesPatterns.join(', ')}`);
+    logger.debug(`[sharewood] 🎯 Priority 3 - Searching for complete series`);
+    logger.debug(`[sharewood] 🔍 Series patterns: ${seriesPatterns.join(', ')}`);
 
     torrents.forEach(torrent => {
       const name = torrent.name.toLowerCase();
@@ -210,15 +210,15 @@ function processTorrents(torrents, type, season, episode, config) {
       
       if (hasSeriesPattern && isNotSpecific && meetsCriteria(torrent, config)) {
         completeSeriesTorrents.push(formatTorrent(torrent));
-        logger.debug(`✅ Complete series torrent added: "${torrent.name}"`);
+        logger.debug(`[sharewood] ✅ Complete series torrent added: "${torrent.name}"`);
       }
     });
     
-    logger.info(`🎯 Found ${completeSeriesTorrents.length} complete series torrents`);
+    logger.info(`[sharewood] 🎯 Found ${completeSeriesTorrents.length} complete series torrents`);
   }
 
   const totalFound = episodeTorrents.length + completeSeasonTorrents.length + completeSeriesTorrents.length + movieTorrents.length;
-  logger.info(`📊 Sharewood processing complete: ${totalFound} torrents matched criteria`);
+  logger.info(`[sharewood] 📊 Sharewood processing complete: ${totalFound} torrents matched criteria`);
   
   return { completeSeriesTorrents, completeSeasonTorrents, episodeTorrents, movieTorrents };
 }
@@ -238,7 +238,7 @@ function meetsCriteria(torrent, config) {
   const isValid = hasValidResolution && hasValidLanguage && hasValidCodec;
   
   if (!isValid) {
-    logger.debug(`❌ Torrent filtered out: "${torrent.name}" - Res:${hasValidResolution} Lang:${hasValidLanguage} Codec:${hasValidCodec} (language field: "${language}")`);
+    logger.debug(`[sharewood] ❌ Torrent filtered out: "${torrent.name}" - Res:${hasValidResolution} Lang:${hasValidLanguage} Codec:${hasValidCodec} (language field: "${language}")`);
   }
   
   return isValid;

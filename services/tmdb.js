@@ -10,7 +10,7 @@ async function getTmdbData(imdbId, config) {
   // Check memory cache first (fastest)
   const cachedResult = cache.getTmdb(cacheKey);
   if (cachedResult) {
-    logger.info(`⚡ TMDB memory cache hit for IMDB ID: ${imdbId}`);
+      logger.info(`[tmdb] TMDB memory cache hit for IMDB ID: ${imdbId}`);
     return cachedResult;
   }
 
@@ -31,7 +31,7 @@ async function getTmdbData(imdbId, config) {
       const frenchTitle = response.data.movie_results[0].original_title;
       const year = response.data.movie_results[0].release_date?.split('-')[0];
 
-      logger.info(`✅ Movie found: ${title} (${year}) (FR Title: ${frenchTitle})`);
+        logger.info(`[tmdb] Movie found: ${title} (${year}) (FR Title: ${frenchTitle})`);
 
       const result = { type: "movie", title, frenchTitle, year };
       
@@ -47,7 +47,7 @@ async function getTmdbData(imdbId, config) {
       const frenchTitle = response.data.tv_results[0].original_name;
       const year = response.data.tv_results[0].first_air_date?.split('-')[0];
 
-      logger.info(`✅ Series found: ${title} (${year}) (FR Title: ${frenchTitle})`);
+        logger.info(`[tmdb] Series found: ${title} (${year}) (FR Title: ${frenchTitle})`);
 
       const result = { type: "series", title, frenchTitle, year };
       
@@ -57,11 +57,11 @@ async function getTmdbData(imdbId, config) {
       return result;
     }
   } catch (error) {
-    logger.error(`❌ TMDB Error for IMDB ID: ${imdbId}`, error.response?.data || error.message);
+      logger.error(`[tmdb] TMDB Error for IMDB ID: ${imdbId}`, error.response?.data || error.message);
   }
 
   // Return null if no data is found
-  logger.warn(`⚠️ No TMDB data found for IMDB ID: ${imdbId}`);
+    logger.warn(`[tmdb] No TMDB data found for IMDB ID: ${imdbId}`);
   return null;
 }
 
